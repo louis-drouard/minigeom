@@ -1,6 +1,4 @@
 """Backend-independent analytical CSG compiler and region model."""
-from __future__ import annotations
-
 from dataclasses import dataclass
 import json
 import math

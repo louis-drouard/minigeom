@@ -3,8 +3,6 @@
 Analytical CSG resolution lives in ``minigeom.csg``. Mesh boolean operations
 here are explicitly approximate and are only intended for previews/STL output.
 """
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Iterator, Optional
 

@@ -1,6 +1,4 @@
 """OpenMC exporter: flat CSG cells or optimized hierarchical universes/lattices."""
-from __future__ import annotations
-
 from pathlib import Path
 from typing import Optional
 import json

@@ -7,8 +7,6 @@ material definitions: MiniGeom material tags are passed to AGORA as strings.
 
 TRIPOLI-5 is an optional dependency. Importing MiniGeom does not require it.
 """
-from __future__ import annotations
-
 from pathlib import Path
 import json
 import re

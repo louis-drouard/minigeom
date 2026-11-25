@@ -3,13 +3,10 @@
 Coordinates use one consistent user unit (normally cm for OpenMC models).
 Rotations are XYZ Euler angles in degrees and compose as Rz @ Ry @ Rx.
 """
-from __future__ import annotations
-
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 import math
-from typing import Iterable
 
 import numpy as np
 import trimesh

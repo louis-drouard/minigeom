@@ -1,21 +1,19 @@
-"""Build the TRIPOLI-5 and OpenMC CANDU 37-pin assembly with MiniGeom.
+"""Build the TRIPOLI-5 CANDU 37-pin assembly with MiniGeom.
 
 Geometry dimensions and pin-ring arrangement follow the official TRIPOLI-5
 CANDU example (Pounders et al., 2011 reference configuration).
 https://tripoli5.asnr.dev/documentation/latest-release/examples/geometries/candu.html
 
 This script creates the analytical MiniGeom scene and can export it directly
-to a TRIPOLI-5 AGORA Geometry or ``.agora`` file when the TRIPOLI-5 Python API is installed.
-Same for OpenMC xml file.
+to a TRIPOLI-5 AGORA ``.agora`` file when the TRIPOLI-5 Python API is installed.
 All dimensions are in centimetres. The model is a single repeating assembly
 with reflective boundary conditions on the six outer faces.
 """
 import math
-from minigeom import Box, Cylinder, Scene
-from minigeom.tripoli5_exporter import Tripoli5Exporter
-from minigeom.openmc_exporter import OpenMCExporter
+from minigeom import Box, Cylinder, Scene, Tripoli5Exporter
 
 # Reference geometry parameters (cm)
+
 # Fuel and cladding radii.
 R_FUEL = 0.6103
 R_CLAD = 0.6522
@@ -35,13 +33,15 @@ RING_ANGLE_OFFSETS_DEG = (0.0, 0.0, 15.0, 0.0)
 ASSEMBLY_PITCH = 28.5750
 AXIAL_PITCH = 49.5300
 
-# Radial interfaces between the four moderator regions.
+# The moderator rings meet halfway between neighbouring pin-ring centre radii.
+# These are geometric interfaces, not pin centre positions.
 RING_INTERFACES = tuple(
     0.5 * (RING_RADII[i] + RING_RADII[i + 1])
     for i in range(len(RING_RADII) - 1)
 )
+
 # MiniGeom model construction
-def place_pin_ring(parent, pin_definition, ring_index: int) -> None:
+def _place_pin_ring(parent, pin_definition, ring_index: int) -> None:
     """Place one concentric ring of identical pins in a water-region volume."""
     radius = RING_RADII[ring_index]
     count = PINS_PER_RING[ring_index]
@@ -72,9 +72,8 @@ assembly = scene.define(
 # the parent's residual region is therefore the corresponding annulus.
 calandria = scene.define("calandria", Cylinder(CALANDRIA_OUTER, AXIAL_PITCH), material="zircaloy c")
 filler = scene.define("filler", Cylinder(CALANDRIA_INNER, AXIAL_PITCH), material="filler")
-
 pressure_tube = scene.define("pressure_tube", Cylinder(PRESSURE_TUBE_OUTER, AXIAL_PITCH), material="zircaloy pt")
-bundle = scene.define( "bundle", Cylinder(PRESSURE_TUBE_INNER, AXIAL_PITCH), material="heavy water")
+bundle = scene.define("bundle", Cylinder(PRESSURE_TUBE_INNER, AXIAL_PITCH), material="heavy water")
 
 assembly.place(calandria, priority=100, name="calandria_shell_domain")
 calandria.place(filler, priority=100, name="filler_domain")
@@ -98,32 +97,18 @@ water_ring_2.place(water_ring_1, priority=100, name="water_ring_1_domain")
 water_ring_1.place(water_ring_0, priority=100, name="water_ring_0_domain")
 
 # Distribute all 37 pins across their corresponding radial moderator zones.
-place_pin_ring(water_ring_0, pin, 0)
-place_pin_ring(water_ring_1, pin, 1)
-place_pin_ring(water_ring_2, pin, 2)
-place_pin_ring(bundle, pin, 3)
+_place_pin_ring(water_ring_0, pin, 0)
+_place_pin_ring(water_ring_1, pin, 1)
+_place_pin_ring(water_ring_2, pin, 2)
+_place_pin_ring(bundle, pin, 3)
 
 scene.set_top(assembly)
 
-try:
-    import tripoli5.agora as agora
-    exporter = Tripoli5Exporter(
+# Direct AGORA export requires an installed TRIPOLI-5 Python API.
+exporter = Tripoli5Exporter(
     scene,
     boundary_type="reflective",
     mode="hierarchy",
-    )
-    agora_geometry = exporter.buid()
-    agora_path = exporter.export("candu_assembly.agora")
-except ImportError:
-    pass
-
-try:
-    import openmc
-    exporter = OpenMCExporter(
-        scene,
-        boundary_type="reflective",
-        mode="hierarchy",
-    )
-    openmc_path = exporter.export("openmc_candu_assembly")
-except ImportError:
-    pass
+    optimize_repeated=True,
+)
+agora_path = exporter.export("candu_assembly.agora")

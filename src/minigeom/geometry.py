@@ -3,13 +3,15 @@
 Coordinates use one consistent user unit (normally cm for OpenMC models).
 Rotations are XYZ Euler angles in degrees and compose as Rz @ Ry @ Rx.
 """
+from __future__ import annotations
+
 from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 import math
+from typing import Iterable
 
 import numpy as np
-import trimesh
 
 
 def _as_vec3(values, label: str) -> tuple[float, float, float]:
@@ -37,12 +39,50 @@ def _transform(position, rotation_deg) -> np.ndarray:
     return matrix
 
 
+def _require_trimesh():
+    """Import Trimesh only for mesh workflows, keeping the analytical core lean."""
+    try:
+        import trimesh
+    except ImportError as exc:
+        raise ImportError(
+            "Mesh functionality requires Trimesh. Install it with "
+            "`pip install minigeom-analytic[mesh]`."
+        ) from exc
+    return trimesh
+
+
 class Primitive:
     """Base class for an analytical region and an optional display mesh."""
     is_bounded: bool = False
 
     def mesh(self) -> trimesh.Trimesh:
+        """Build a display mesh; requires the optional ``mesh`` extra."""
         raise NotImplementedError(f"No preview mesh is available for {type(self).__name__}")
+
+    # The operators below create a high-level Boolean expression. They do not
+    # perform mesh booleans: the expression is later compiled into analytical
+    # surfaces and half-spaces by CSGCompiler.
+    def _as_region_expression(self):
+        from .region_expr import as_region_expression
+        return as_region_expression(self)
+
+    def __and__(self, other):
+        return self._as_region_expression() & other
+
+    def __or__(self, other):
+        return self._as_region_expression() | other
+
+    def __sub__(self, other):
+        return self._as_region_expression() - other
+
+    def __invert__(self):
+        return ~self._as_region_expression()
+
+    def translated(self, offset):
+        return self._as_region_expression().translated(offset)
+
+    def rotated(self, angles, *, order="xyz"):
+        return self._as_region_expression().rotated(angles, order=order)
 
     def analytic(self) -> dict:
         raise NotImplementedError
@@ -60,11 +100,12 @@ class MeshPrimitive(Primitive):
     It can be placed, previewed and exported as STL, but analytical exporters
     (OpenMC and TRIPOLI-5) reject it unless it is converted to supported primitives.
     """
-    mesh_data: trimesh.Trimesh
+    mesh_data: object
     source: str | None = None
     is_bounded = True
 
     def __post_init__(self):
+        trimesh = _require_trimesh()
         if not isinstance(self.mesh_data, trimesh.Trimesh):
             raise TypeError("MeshPrimitive.mesh_data must be a trimesh.Trimesh")
         if self.mesh_data.is_empty or len(self.mesh_data.faces) == 0:
@@ -77,6 +118,7 @@ class MeshPrimitive(Primitive):
     def from_file(cls, filename, *, scale: float = 1.0, process: bool = True,
                   require_watertight: bool = True) -> "MeshPrimitive":
         """Load an STL/mesh file. STL units are not encoded; ``scale`` is explicit."""
+        trimesh = _require_trimesh()
         path = Path(filename)
         if not path.is_file():
             raise FileNotFoundError(f"Mesh file not found: {path}")
@@ -99,6 +141,7 @@ class MeshPrimitive(Primitive):
         return cls(mesh_data=loaded, source=str(path.resolve()))
 
     def mesh(self) -> trimesh.Trimesh:
+        _require_trimesh()
         return self.mesh_data.copy()
 
     def analytic(self) -> dict:
@@ -127,6 +170,7 @@ class Sphere(Primitive):
             raise ValueError("Sphere.subdivisions must be an integer >= 1")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         return trimesh.creation.icosphere(subdivisions=self.subdivisions, radius=self.radius)
 
     def analytic(self) -> dict:
@@ -154,6 +198,7 @@ class Cylinder(Primitive):
             raise ValueError("Cylinder.sections must be an integer >= 8")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         return trimesh.creation.cylinder(radius=self.radius, height=self.height, sections=self.sections)
 
     def analytic(self) -> dict:
@@ -179,6 +224,7 @@ class Box(Primitive):
                 raise ValueError(f"Box.{name} must be finite and strictly positive")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         return trimesh.creation.box(extents=(self.x, self.y, self.z))
 
     def analytic(self) -> dict:
@@ -209,6 +255,7 @@ class Cone(Primitive):
             raise ValueError("Cone.sections must be an integer >= 8")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         n = self.sections
         angles = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
         z0, z1 = -self.height / 2.0, self.height / 2.0
@@ -254,6 +301,7 @@ class Ellipsoid(Primitive):
             raise ValueError("Ellipsoid.subdivisions must be an integer >= 1")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         mesh = trimesh.creation.icosphere(subdivisions=self.subdivisions, radius=1.0)
         mesh.apply_scale(self.radii)
         return mesh
@@ -287,6 +335,7 @@ class Torus(Primitive):
             raise ValueError("Torus subdivisions must be >= 8")
 
     def mesh(self) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         mesh = trimesh.creation.torus(self.major_radius, self.minor_radius,
                                      self.major_sections, self.minor_sections)
         if self.axis == "x":
@@ -436,6 +485,12 @@ class LatticePlacement:
     parent's local frame, and ``pitch`` is (px, py, pz). For reliable OpenMC
     transport the child definition must be a Box exactly matching the pitch;
     this gives each lattice element a complete tile universe.
+
+
+    The default child is repeated at every lattice coordinate. Sparse
+    substitutions may be assigned with ``lattice[i, j, k] = replacement``.
+    Indices use MiniGeom's natural order (i along X, j along Y, k along Z),
+    independent of OpenMC's native reversed-Y universe-array convention.
     """
     child: "VolumeDef"
     shape: tuple[int, int, int]
@@ -445,6 +500,10 @@ class LatticePlacement:
     name: str = "lattice"
     material_override: str | None = None
     _order: int = field(default=0, repr=False)
+    # Sparse element replacements. Keys use MiniGeom's natural (i, j, k)
+    # order, with i along X, j along Y, and k along Z.
+    replacements: dict[tuple[int, int, int], "VolumeDef"] = field(default_factory=dict, repr=False)
+    owner: "VolumeDef | None" = field(default=None, repr=False)
 
     def __post_init__(self):
         if not isinstance(self.child, VolumeDef):
@@ -488,10 +547,109 @@ class LatticePlacement:
         return tuple(self.lower_left[a] + (idx + 0.5) * self.pitch[a]
                      for a, idx in enumerate((i, j, k)))
 
+    def _validate_index(self, index) -> tuple[int, int, int]:
+        """Validate a lattice index in natural (i, j, k) order."""
+        try:
+            raw = tuple(index)
+        except TypeError as exc:
+            raise TypeError("Lattice index must be a 3-tuple (i, j, k)") from exc
+        if len(raw) != 3:
+            raise IndexError("Lattice index must contain exactly three indices: (i, j, k)")
+        converted = []
+        for axis, value, extent in zip("ijk", raw, self.shape):
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)):
+                raise TypeError(f"Lattice index {axis} must be an integer")
+            value = int(value)
+            if value < 0 or value >= extent:
+                raise IndexError(f"Lattice index {axis}={value} outside [0, {extent - 1}]")
+            converted.append(value)
+        return tuple(converted)
+
+    def set_element(self, i: int, j: int, k: int, volume: "VolumeDef") -> "VolumeDef":
+        """Replace one lattice element's default universe with another VolumeDef.
+
+
+
+        Replacement affects only this element. It does not alter the default tile
+        or any other element, and it is preserved by both native lattice exporters.
+        """
+        index = self._validate_index((i, j, k))
+        if not isinstance(volume, VolumeDef):
+            raise TypeError("Lattice element replacement must be a VolumeDef")
+        # Native lattice universes must describe a full tile, just like the
+        # default universe. Requiring a matching Box avoids accidental gaps or
+        # overlaps between adjacent element universes in transport geometry.
+        if not isinstance(volume.shape, Box):
+            raise ValueError("A lattice replacement root must be a Box matching the lattice pitch")
+        replacement_size = np.array([volume.shape.x, volume.shape.y, volume.shape.z], dtype=float)
+        if not np.allclose(replacement_size, np.asarray(self.pitch), rtol=1e-10, atol=1e-12):
+            raise ValueError("Lattice replacement root Box must exactly match the lattice pitch")
+        if self.owner is not None and (
+            volume is self.owner or volume._contains_in_descendants(self.owner)
+        ):
+            raise ValueError("Lattice replacement would introduce a definition cycle")
+        self.replacements[index] = volume
+        return volume
+
+
+
+    def clear_element(self, i: int, j: int, k: int) -> None:
+        """Restore an element to the lattice's default child universe."""
+        index = self._validate_index((i, j, k))
+        self.replacements.pop(index, None)
+
+
+
+    def get_element(self, i: int, j: int, k: int) -> "VolumeDef":
+        """Return the VolumeDef assigned to an element, including replacements."""
+        index = self._validate_index((i, j, k))
+        return self.replacements.get(index, self.child)
+
+
+
+    def __getitem__(self, index) -> "VolumeDef":
+        """Read an element using lattice[index] where index is (i, j, k)."""
+        return self.get_element(*self._validate_index(index))
+
+
+
+    def __setitem__(self, index, volume: "VolumeDef") -> None:
+        """Assign an element using lattice[i, j, k] = another_volume."""
+        self.set_element(*self._validate_index(index), volume)
+
+
+
     def clone(self) -> "LatticePlacement":
-        return LatticePlacement(self.child.clone(copy_children=True), self.shape,
-                                self.pitch, self.lower_left, self.priority,
-                                self.name, self.material_override, self._order)
+        # deepcopy preserves the graph and the replacement definitions.
+        return deepcopy(self)
+
+
+
+@dataclass
+class RegionCellDef:
+    """A named analytical cell declared explicitly inside a VolumeDef universe.
+
+    The region expression is evaluated in the owning VolumeDef's local frame.
+    ``priority`` resolves overlaps against other explicit cells in that same
+    universe: higher values win, and later declarations win ties.
+    """
+    name: str
+    region: object
+    material: str | None = None
+    priority: int = 0
+    _order: int = field(default=0, repr=False)
+
+    def __post_init__(self):
+        if not self.name or "/" in self.name:
+            raise ValueError("Region-cell name must be non-empty and must not contain '/'")
+        if not isinstance(self.priority, int):
+            raise TypeError("Region-cell priority must be an integer")
+        if self.material is not None:
+            if not isinstance(self.material, str):
+                raise TypeError("Region-cell material must be a string or None")
+            self.material = self.material.strip() or None
+        from .region_expr import as_region_expression
+        self.region = as_region_expression(self.region)
 
 
 _MATERIAL_UNSET = object()
@@ -517,6 +675,10 @@ class VolumeDef:
         self.self_priority = int(self_priority)
         self.children: list[Placement] = []
         self.lattices: list[LatticePlacement] = []
+        # Explicit region cells are an alternative to implicit parent/child
+        # carving in this universe. Mixing both styles in one VolumeDef is
+        # rejected by the compiler until a single arbitration policy exists.
+        self.region_cells: list[RegionCellDef] = []
         self._next_order = 0
 
     @staticmethod
@@ -533,19 +695,58 @@ class VolumeDef:
         if id(self) in visited:
             return False
         visited.add(id(self))
-        for item in [*self.children, *self.lattices]:
+        for item in self.children:
             if item.child is target or item.child._contains_in_descendants(target, visited):
                 return True
+        for lattice in self.lattices:
+            if lattice.child is target or lattice.child._contains_in_descendants(target, visited):
+                return True
+            for replacement in lattice.replacements.values():
+                if replacement is target or replacement._contains_in_descendants(target, visited):
+                    return True
         return False
 
     def _validate_child_name(self, name: str):
-        existing = [p.name for p in self.children] + [p.name for p in self.lattices]
+        existing = ([p.name for p in self.children]
+                    + [p.name for p in self.lattices]
+                    + [cell.name for cell in self.region_cells])
         if name in existing:
             raise ValueError(f"A placement or lattice named '{name}' already exists in '{self.name}'")
+
+    def add_cell(self, name: str, region, material: str | None = None,
+                 priority: int = 0) -> RegionCellDef:
+        """Add an explicit analytical cell to this universe.
+
+        ``region`` can be a Primitive or a Boolean expression built with
+        ``&`` (intersection), ``|`` (union), ``-`` (difference), and ``~``
+        (complement). The expression is defined in this VolumeDef's local
+        coordinate system and is clipped to the VolumeDef's domain at compile
+        time. Do not combine explicit cells with ``place()`` or
+        ``place_lattice()`` in the same VolumeDef; use one partitioning style
+        per universe for unambiguous cell ownership.
+        """
+        if self.children or self.lattices:
+            raise ValueError(
+                f"Volume '{self.name}' already contains implicit placements; "
+                "explicit region cells cannot be mixed with placements in the same universe"
+            )
+        cell = RegionCellDef(name=name, region=region, material=material,
+                             priority=priority, _order=self._next_order)
+        self._validate_child_name(cell.name)
+        self._next_order += 1
+        self.region_cells.append(cell)
+        return cell
+
+    add_region_cell = add_cell
 
     def place(self, child: "VolumeDef", at=(0., 0., 0.), rotate=(0., 0., 0.),
               priority: int = 0, copy_no: int | None = None,
               name: str | None = None, material_override: str | None = None) -> Placement:
+        if self.region_cells:
+            raise ValueError(
+                f"Volume '{self.name}' already contains explicit region cells; "
+                "placements cannot be mixed with explicit cells in the same universe"
+            )
         if not isinstance(child, VolumeDef):
             raise TypeError("child must be a VolumeDef")
         if child is self or child._contains_in_descendants(self):
@@ -585,12 +786,17 @@ class VolumeDef:
                       priority: int = 0, name: str | None = None,
                       material_override: str | None = None) -> LatticePlacement:
         """Add a regular 3-D lattice. ``shape`` uses natural (nx, ny, nz) order."""
+        if self.region_cells:
+            raise ValueError(
+                f"Volume '{self.name}' already contains explicit region cells; "
+                "lattices cannot be mixed with explicit cells in the same universe"
+            )
         if child is self or child._contains_in_descendants(self):
             raise ValueError(f"Cycle detected: cannot place '{child.name}' inside '{self.name}'")
         lattice = LatticePlacement(
             child=child, shape=shape, pitch=pitch, lower_left=lower_left,
             priority=priority, name=name or f"{child.name}_lattice_{self._next_order}",
-            material_override=material_override, _order=self._next_order,
+            material_override=material_override, _order=self._next_order, owner=self,
         )
         self._validate_child_name(lattice.name)
         self._next_order += 1
@@ -647,6 +853,7 @@ class VolumeInstance:
         return "/".join(self.path)
 
     def world_mesh(self) -> trimesh.Trimesh | None:
+        _require_trimesh()
         if self.volume_def.shape is None:
             return None
         try:

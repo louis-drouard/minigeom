@@ -62,6 +62,11 @@ class FakeUniverse:
 class FakeRectLattice:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self.elements = {}
+    def __setitem__(self, index, universe):
+        self.elements[tuple(index)] = universe
+    def __getitem__(self, index):
+        return self.elements.get(tuple(index), self.kwargs.get("universe"))
 
 
 class FakeBoundaryConditions:
@@ -199,3 +204,41 @@ def test_tripoli_default_material_fills_untagged_volumes(monkeypatch):
     exporter = Tripoli5Exporter(scene, default_material="VOID_BG", mode="hierarchy")
     exporter.build()
     assert any(v.material == "VOID_BG" for v in exporter.volumes if isinstance(v, FakeVolume))
+
+
+def test_tripoli_auto_mode_uses_flat_backend_for_explicit_boolean_cells(monkeypatch):
+    patch_tripoli(monkeypatch)
+    scene = Scene("tripoli_boolean_cells")
+    world = scene.define("world", Box(10, 10, 10), material="water")
+    world.add_cell("shell", Cylinder(3, 8) - Cylinder(1, 8), "steel")
+    world.add_cell("core", Sphere(1), "fuel")
+
+    exporter = Tripoli5Exporter(scene, mode="auto")
+    geometry = exporter.build()
+
+    assert geometry.root_universe is not None
+    assert exporter._selected_mode == "flat"
+    assert "explicit Boolean region cells" in exporter._fallback_reason
+    assert {volume.material for volume in exporter.volumes} >= {"steel", "fuel"}
+
+
+def test_tripoli_lattice_replacements_use_native_index_assignment(monkeypatch):
+    patch_tripoli(monkeypatch)
+    scene = Scene("tripoli_lattice_replacements")
+    world = scene.define("world", Box(20, 20, 10), material="WATER")
+    tile = scene.define("tile", Box(2, 2, 2), material="MODERATOR")
+    pin = scene.define("pin", Cylinder(0.5, 2), material="FUEL")
+    tile.place(pin)
+    guide_tile = scene.define("guide_tile", Box(2, 2, 2), material="MODERATOR")
+    guide = scene.define("guide", Cylinder(0.7, 2), material="GUIDE")
+    guide_tile.place(guide)
+    lattice_spec = world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
+        lower_left=(-3, -2, -1), name="assembly")
+    lattice_spec[1, 0, 0] = guide_tile
+    lattice_spec[2, 1, 0] = guide_tile
+    exporter = Tripoli5Exporter(scene, mode="hierarchy")
+    exporter.build()
+    lattice = exporter.lattices["assembly"]
+    assert lattice.elements[(1, 0, 0)].label == "u_guide_tile"
+    assert lattice.elements[(2, 1, 0)].label == "u_guide_tile"
+    assert lattice[(0, 0, 0)].label == "u_tile"

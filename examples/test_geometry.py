@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     sc.export_combined_mesh("test_features_resolved.stl")
 
-    sc.show()
+    sc.view()
 
     exporter = OpenMCHierarchyExporter(sc)
     exporter.export_xml("openmc_hierarchy_xml")

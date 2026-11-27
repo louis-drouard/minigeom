@@ -1,4 +1,6 @@
 """OpenMC exporter: flat CSG cells or optimized hierarchical universes/lattices."""
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Optional
 import json
@@ -106,6 +108,9 @@ class OpenMCExporter:
         if any(inst.can_overlap for inst in instances):
             return "protruding placements currently require the flattened CSG backend"
         for inst in instances:
+            if inst.volume_def.region_cells:
+                return (f"volume '{inst.label}' contains explicit Boolean region cells; "
+                        "the flat CSG backend is required")
             if inst.volume_def.shape is None:
                 return f"logical node '{inst.label}' must be flattened"
         if not self.use_lattices and any(v.lattices for v in self.scene.defs.values()):
@@ -405,6 +410,9 @@ class OpenMCExporter:
 
                 element_universe = self._build_universe_hierarchy(
                     lattice_spec.child, lattice_spec.material_override)
+                # Build a native OpenMC RectLattice with a default universe, then
+                # substitute sparse element universes in natural MiniGeom (i,j,k)
+                # coordinates. OpenMC's array convention is [k, reversed-j, i].
                 lattice = openmc.RectLattice(name=self._safe_name(lattice_spec.name))
                 lattice.lower_left = lattice_spec.lower_left
                 lattice.pitch = lattice_spec.pitch
@@ -414,6 +422,10 @@ class OpenMCExporter:
                     for j in range(ny):
                         for i in range(nx):
                             array[k, ny - 1 - j, i] = element_universe
+                for (i, j, k), replacement_def in lattice_spec.replacements.items():
+                    replacement_universe = self._build_universe_hierarchy(
+                        replacement_def, lattice_spec.material_override)
+                    array[k, ny - 1 - j, i] = replacement_universe
                 lattice.universes = array
                 # A finite parent cell clips the lattice envelope. The outer
                 # universe is nevertheless supplied to satisfy OpenMC's full

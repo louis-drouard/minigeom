@@ -362,3 +362,50 @@ def test_hierarchical_lattice_export_patches_symbolic_material_ids(monkeypatch, 
     assert {str(item["id"]) for item in id_map.values()} <= material_refs
     assert len(exporter.lattices) == 1
     assert not (tmp_path / "materials.xml").exists()
+
+
+def test_openmc_auto_mode_uses_flat_backend_for_explicit_boolean_cells(monkeypatch):
+    reset_fake_ids()
+    monkeypatch.setattr(exporter_module, "openmc", make_fake_openmc())
+    scene = Scene("openmc_boolean_cells")
+    world = scene.define("world", Box(10, 10, 10))
+    world.add_cell("shell", Cylinder(3, 8) - Cylinder(1, 8), "steel")
+    world.add_cell("core", Sphere(1), "fuel")
+
+    exporter = OpenMCExporter(scene, mode="auto")
+    exporter.build()
+
+    assert exporter._selected_mode == "flat"
+    assert "explicit Boolean region cells" in exporter._fallback_reason
+    assert any(cell.material == "steel" for cell in exporter.model.cells)
+    assert any(cell.material == "fuel" for cell in exporter.model.cells)
+
+
+def test_rectangular_lattice_replacements_export_as_native_openmc_universes(monkeypatch):
+    reset_fake_ids()
+    fake = make_fake_openmc()
+    monkeypatch.setattr(exporter_module, "openmc", fake)
+    scene = Scene("lattice_replacements")
+    world = scene.define("world", Box(20, 20, 10), "air")
+    default_tile = scene.define("fuel_tile", Box(2, 2, 2), "moderator")
+    default_pin = scene.define("fuel", Cylinder(0.5, 2), "fuel")
+    default_tile.place(default_pin)
+    guide_tile = scene.define("guide_tile", Box(2, 2, 2), "moderator")
+    guide = scene.define("guide", Cylinder(0.7, 2), "guide_material")
+    guide_tile.place(guide)
+    lattice_spec = world.place_lattice(
+        default_tile, shape=(3, 2, 1), pitch=(2, 2, 2),
+        lower_left=(-3, -2, -1), name="pins"
+    )
+    lattice_spec[1, 0, 0] = guide_tile
+    lattice_spec[2, 1, 0] = guide_tile
+    materials = {name: FakeMaterial(name) for name in
+                 ("air", "moderator", "fuel", "guide_material")}
+    exporter = OpenMCExporter(scene, materials, mode="hierarchy")
+    exporter.build()
+    lattice = exporter.lattices["pins"]
+    # Natural MiniGeom j=0 maps to the second row in OpenMC's reversed-y array.
+    assert lattice.universes[0, 1, 1].name == "u_guide_tile"
+    assert lattice.universes[0, 0, 2].name == "u_guide_tile"
+    assert lattice.universes[0, 1, 0].name == "u_fuel_tile"
+    assert lattice.universes[0, 0, 0].name == "u_fuel_tile"

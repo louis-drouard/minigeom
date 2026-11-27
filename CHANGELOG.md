@@ -1,26 +1,35 @@
 # Changelog
 
+## 0.2.0
+
+- Added sparse per-element replacements to `LatticePlacement`.
+- Added indexing syntax `lattice[i, j, k] = volume`, `get_element`,
+  `set_element`, and `clear_element`.
+- Scene instance traversal now expands replacement universes at the corresponding
+  lattice coordinates.
+- OpenMC hierarchy export writes replacement universes into native `RectLattice`
+  arrays using OpenMC's reversed-Y array convention.
+- TRIPOLI-5 hierarchy export assigns replacement universes directly into native
+  AGORA rectangular lattices.
+- Added a 17x17 lattice guide-tube example and regression tests for both exporters.
+
 ## 0.1.0
 
-- OpenMC geometry export now assigns deterministic numeric material IDs to all non-void symbolic tags.
-- Added `materials_ids.json` with tag-to-ID mapping and source metadata (`external` or `openmc.Material`).
-- Removed fake OpenMC Material objects from geometry-only export; external IDs are written into the exported `geometry.xml` after OpenMC serializes the geometry.
-- `materials.xml` is written only when real `openmc.Material` objects are used by exported cells and material export is enabled.
-- `materials_map` may be partial; unbound symbolic tags retain external IDs.
-- Added optional explicit `material_ids` for stable IDs across external geometry/material workflows.
-- Added a dedicated TRIPOLI-5 AGORA exporter for analytical CSG, nested universes, rectangular lattices, material-name tags, boundary conditions, and `.agora` serialization.
-- Corrected the AGORA affine-transform translation so translation-then-rotation matches MiniGeom's `R @ point + translation` convention.
-- Set AGORA rectangular-lattice outer universe to `None` when the finite composite envelope already bounds the lattice.
-- Added STL import as `MeshPrimitive` and APIs to export local definitions, placed instances, complete node subtrees, and whole scenes.
-- Clarified that imported STL meshes are visualization/interchange geometry and are not converted into analytical CSG surfaces.
-- Translated remaining French exception messages and diagnostics to English; source comments and docstrings are in English.
-- Added tests for external material IDs, partial material binding, STL round-trips, TRIPOLI-5 hierarchy/lattice mapping, and transformed placements.
-- Added mesh-backed STL import/export support.
-- Added initial TRIPOLI-5 AGORA geometry exporter.
-- Added an initial material-ID catalog for symbolic OpenMC material tags.
-- Material tags on `VolumeDef` became optional; the default is `None`.
-- Added symbolic material tags and optional `openmc.Material` binding.
-- Added geometry-only OpenMC export and a CSG JSON description.
-- Added finite cones, ellipsoids, ring tori, planes, general quadrics, rectangular lattices, and sampled overlap diagnostics.
-- Corrected plane normalization and bounded-quadric clipping.
-- Preserved shared `VolumeDef` identity during deep cloning.
+- Separated the analytical geometry core from optional triangle-mesh tooling. Trimesh is no longer a mandatory dependency and is imported lazily only for mesh/STL operations.
+- Added `region_expr.py`, a backend-independent high-level Boolean expression API supporting intersection (`&`), union (`|`), difference (`-`), complement (`~`), translated/rotated operands, `union_all()` and `intersection_all()`.
+- Added `VolumeDef.add_cell()` / `add_region_cell()` for explicit analytical cell partitions in a universe.
+- Extended `CSGCompiler` to transform, clip, prioritize and serialize explicit region cells using the same analytical surface registry as implicit hierarchy cells.
+- Added raw explicit-cell footprints to overlap diagnostics.
+- Updated OpenMC and TRIPOLI-5 exporters to select the flat CSG backend automatically when explicit Boolean cells are present; forced hierarchy mode reports the incompatibility.
+- Added `examples/candu_hierarchical.py` and `examples/candu_boolean_regions.py`, two equivalent constructions of the CANDU 37-pin assembly.
+- Added extensive English comments explaining the set-theoretic and coordinate-transform meaning of Boolean expressions and CSG compilation.
+- Moved Trimesh, Manifold3D and PyVista into optional installation extras.
+- Added tests for Boolean operations, explicit-cell priority, transformations, domain clipping, exporter fallback and both CANDU examples.
+- Fix the open-STL test fixture so it does not call `trimesh.Trimesh.slice_plane()`, which imports the optional SciPy dependency.
+- Keep SciPy optional; MiniGeom's STL import path does not require it.
+- OpenMC geometry export assigns deterministic numeric material IDs to non-void symbolic tags.
+- Added `materials_ids.json` with tag-to-ID mapping and source metadata.
+- Added optional real `openmc.Material` binding and conditional `materials.xml` export.
+- Added TRIPOLI-5 AGORA exporter for analytical CSG, nested universes, rectangular lattices and material-name tags.
+- Added STL import/export for definitions, instances, nodes and scenes.
+- Clarified that imported STL meshes are not analytical CSG surfaces.

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import trimesh
 
-from minigeom import Box, CSGCompiler, MeshPrimitive, Scene
+from minigeom import Box, CSGCompiler, MeshPrimitive, Scene, Sphere
 
 
 def make_stl(path: Path):
@@ -29,16 +29,14 @@ def test_import_stl_creates_mesh_primitive_and_applies_scale(tmp_path):
 
 def test_import_stl_can_allow_an_open_surface_when_requested(tmp_path):
     source = tmp_path / "open_surface.stl"
+    # Build an open surface by removing the two top triangles from a box.
+    # Trimesh's slice_plane() currently imports scipy.spatial.cKDTree, while
+    # SciPy is deliberately not a core or test dependency of MiniGeom.
     open_mesh = trimesh.creation.box()
-
-    # Remove the two top faces to create an open surface.
     top_faces = open_mesh.face_normals[:, 2] > 0.9
-
     open_mesh.update_faces(~top_faces)
     open_mesh.remove_unreferenced_vertices()
-
     assert not open_mesh.is_watertight
-
     open_mesh.export(source)
 
     scene = Scene("open_mesh")
@@ -93,3 +91,8 @@ def test_mesh_primitive_is_rejected_by_analytical_csg_export(tmp_path):
     with pytest.raises(NotImplementedError, match="cannot be compiled to analytical CSG"):
         CSGCompiler().compile(scene)
 
+
+def test_missing_stl_file_has_an_english_exception(tmp_path):
+    scene = Scene("missing_mesh")
+    with pytest.raises(FileNotFoundError, match="Mesh file not found"):
+        scene.import_stl("missing", tmp_path / "missing.stl")

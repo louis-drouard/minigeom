@@ -5,6 +5,7 @@ from .geometry import (
 )
 from .scene import Scene
 from .csg import CSGCompiler, CSGModel
+from .region_expr import RegionExpression, as_region_expression, union_all, intersection_all
 from .overlap import OverlapChecker, OverlapPair, OverlapReport
 from .openmc_exporter import OpenMCExporter, OpenMCHierarchyExporter
 from .tripoli5_exporter import Tripoli5Exporter
@@ -12,6 +13,8 @@ from .tripoli5_exporter import Tripoli5Exporter
 __all__ = [
     "Box", "Cone", "Cylinder", "Ellipsoid", "Plane", "Quadric", "Sphere", "Torus",
     "Primitive", "MeshPrimitive", "Placement", "LatticePlacement", "VolumeDef", "VolumeInstance",
-    "Scene", "CSGCompiler", "CSGModel", "OverlapChecker", "OverlapPair",
+    "Scene", "CSGCompiler", "CSGModel", "RegionExpression",
+    "as_region_expression", "union_all", "intersection_all",
+    "OverlapChecker", "OverlapPair",
     "OverlapReport", "OpenMCExporter", "OpenMCHierarchyExporter", "Tripoli5Exporter",
 ]

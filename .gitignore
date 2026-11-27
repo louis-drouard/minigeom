@@ -1,10 +1,12 @@
-# Python-generated files
 __pycache__/
-*.py[oc]
+*.py[cod]
+.pytest_cache/
+.venv/
 build/
 dist/
-wheels/
-*.egg-info
-
-# Virtual environments
-.venv
+*.egg-info/
+openmc_out/
+openmc_*/
+*.stl
+*_report.json
+analytic_primitives.json

@@ -1,28 +1,22 @@
 [project]
 name = "minigeom"
-version = "0.1.0"
-description = "Analytical hierarchical CSG geometry builder with OpenMC and TRIPOLI-5 exporters"
+version = "0.2.0"
+description = "Backend-independent analytical CSG geometry builder with optional mesh, OpenMC and TRIPOLI-5 workflows"
 readme = "README.md"
 authors = [
     { name = "Louis DROUARD" }
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
-    "manifold3d>=3.5.5",
     "numpy>=1.26.4",
-    "trimesh>=4.0",
 ]
-
-[project.scripts]
-minigeom = "minigeom:main"
 
 [project.optional-dependencies]
-view = [
-    "pyvista>=0.49.2",
-]
-dev = [
-    "pytest>=9.2.0",
-]
+mesh = ["trimesh>=4.0"]
+mesh-boolean = ["trimesh>=4.0", "manifold3d"]
+view = ["trimesh>=4.0", "manifold3d", "pyvista"]
+test = ["pytest", "trimesh>=4.0", "manifold3d"]
+dev = ["pytest", "trimesh>=4.0", "manifold3d", "pyvista"]
 
 [build-system]
 requires = ["uv_build>=0.12.0,<0.13.0"]

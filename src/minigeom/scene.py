@@ -3,13 +3,26 @@
 Analytical CSG resolution lives in ``minigeom.csg``. Mesh boolean operations
 here are explicitly approximate and are only intended for previews/STL output.
 """
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Iterator, Optional
 
 import numpy as np
-import trimesh
 
 from .geometry import MeshPrimitive, Placement, VolumeDef, VolumeInstance
+
+
+def _require_trimesh():
+    """Load the optional mesh backend only when a mesh operation is requested."""
+    try:
+        import trimesh
+    except ImportError as exc:
+        raise ImportError(
+            "This operation requires Trimesh. Install it with "
+            "`pip install minigeom-analytic[mesh]`."
+        ) from exc
+    return trimesh
 
 
 def _tri_to_pv(mesh: trimesh.Trimesh):
@@ -21,6 +34,7 @@ def _tri_to_pv(mesh: trimesh.Trimesh):
 
 
 def _mesh_boolean(operation: str, meshes: list[trimesh.Trimesh]) -> trimesh.Trimesh | None:
+    trimesh = _require_trimesh()
     meshes = [m for m in meshes if m is not None and not m.is_empty]
     if not meshes:
         return None
@@ -88,6 +102,10 @@ class Scene:
                     add(placement.child)
                 for lattice in current.lattices:
                     add(lattice.child)
+                    # Sparse substitutions are real reusable universes too, so
+                    # register their definitions for exporters and scene lookup.
+                    for replacement in lattice.replacements.values():
+                        add(replacement)
 
         add(volume_def)
         if self.top_volume is None:
@@ -160,8 +178,9 @@ class Scene:
                         for j in range(ny):
                             for i in range(nx):
                                 element_name = f"{item.name}[{i},{j},{k}]"
+                                element_child = item.get_element(i, j, k)
                                 synthetic = Placement(
-                                    child=item.child, copy_no=(k*ny+j)*nx+i+1,
+                                    child=element_child, copy_no=(k*ny+j)*nx+i+1,
                                     name=element_name, position=item.center(i,j,k),
                                     rotation=(0.,0.,0.), priority=item.priority,
                                     material_override=item.material_override,
@@ -201,6 +220,7 @@ class Scene:
 
     def _mesh_resolved_instances(self) -> dict[str, trimesh.Trimesh | None]:
         """Approximate priority-resolved meshes for preview only (Manifold backend)."""
+        _require_trimesh()
         instances = list(self.iter_instances())
         if not instances:
             return {}
@@ -291,6 +311,7 @@ class Scene:
         return outputs
 
     def export_combined_mesh(self, path: str | Path, *, resolved: bool = True) -> trimesh.Trimesh:
+        trimesh = _require_trimesh()
         if resolved:
             parts = [m for m in self._mesh_resolved_instances().values()
                      if m is not None and not m.is_empty]
@@ -318,6 +339,7 @@ class Scene:
         applied using the preview mesh boolean backend. This is approximate
         and may require ``manifold3d``.
         """
+        _require_trimesh()
         label = self._normalize_instance_path(instance_path)
         instance = next((item for item in self.iter_instances() if item.label == label), None)
         if instance is None:
@@ -336,6 +358,7 @@ class Scene:
     def export_node_stl(self, node_path: str | tuple[str, ...],
                         filename: str | Path, *, resolved: bool = True) -> Path:
         """Export a node and all descendants as one STL mesh in world coordinates."""
+        _require_trimesh()
         prefix = self._normalize_instance_path(node_path)
         instances = list(self.iter_instances())
         selected = [item for item in instances
@@ -355,6 +378,7 @@ class Scene:
                     parts.append(mesh)
         if not parts:
             raise ValueError(f"Node '{prefix}' has no exportable mesh")
+        trimesh = _require_trimesh()
         combined = trimesh.util.concatenate(parts) if len(parts) > 1 else parts[0]
         path = Path(filename)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -396,9 +420,16 @@ class Scene:
         """Export the complete scene as one STL mesh."""
         return self.export_combined_mesh(filename, resolved=resolved)
 
-    def show(self, resolved: bool = True, outer_opacity: float = 0.25,
+    def view(self, resolved: bool = True, outer_opacity: float = 0.25,
              inner_opacity: float = 0.90, interactive_clip: bool = False) -> None:
-        import pyvista as pv
+        _require_trimesh()
+        try:
+            import pyvista as pv
+        except ImportError as exc:
+            raise ImportError(
+                "Interactive visualization requires PyVista. Install it with "
+                "`pip install minigeom-analytic[visualization]`."
+            ) from exc
         instances = list(self.iter_instances())
         resolved_meshes = self._mesh_resolved_instances() if resolved else {}
         rng = np.random.default_rng(42)

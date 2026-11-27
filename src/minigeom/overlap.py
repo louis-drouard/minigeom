@@ -5,6 +5,8 @@ then checks that each sampled point is assigned to exactly one resolved CSG cell
 It is a diagnostic, not a mathematical proof: very small intersections can be
 missed unless the sample count is increased or a targeted point is supplied.
 """
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path

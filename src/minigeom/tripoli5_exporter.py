@@ -7,6 +7,8 @@ material definitions: MiniGeom material tags are passed to AGORA as strings.
 
 TRIPOLI-5 is an optional dependency. Importing MiniGeom does not require it.
 """
+from __future__ import annotations
+
 from pathlib import Path
 import json
 import re
@@ -89,6 +91,9 @@ class Tripoli5Exporter:
         if any(item.can_overlap for item in instances):
             return "protruding placements require the flattened CSG backend"
         for item in instances:
+            if item.volume_def.region_cells:
+                return (f"volume '{item.label}' contains explicit Boolean region cells; "
+                        "the flat CSG backend is required")
             if item.volume_def.shape is None:
                 return f"logical node '{item.label}' has no bounding primitive"
         if not self.use_lattices and any(v.lattices for v in self.scene.defs.values()):
@@ -259,6 +264,15 @@ class Tripoli5Exporter:
                     outer_universe=None,
                     label=self._safe_name(lattice_spec.name),
                 )
+                # Native AGORA lattices support per-element universe
+                # substitution. MiniGeom indices are natural (i,j,k) order.
+                # We keep the regular lattice intact and replace only the
+                # specified entries, avoiding synthetic overlap cells.
+                for (i, j, k), replacement_def in lattice_spec.replacements.items():
+                    replacement_universe = self._build_universe(
+                        replacement_def, lattice_spec.material_override
+                    )
+                    lattice[i, j, k] = replacement_universe
                 self.lattices[lattice_spec.name] = lattice
                 envelope = self._box_region(
                     lattice_spec.lower_left, lattice_spec.upper_right,

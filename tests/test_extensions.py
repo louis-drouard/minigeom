@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from minigeom import (
-    Box, Cone, Ellipsoid, Plane, Quadric, Scene, Sphere, Torus,
+    Box, Cone, Cylinder, Ellipsoid, Plane, Quadric, Scene, Sphere, Torus,
     CSGCompiler, OverlapChecker,
 )
 
@@ -179,3 +179,73 @@ def test_volume_clone_preserves_reused_definition_identity():
     clone = root.clone(name="root_copy")
     assert clone.children[0].child is clone.children[1].child
     assert clone.children[0].child is not repeated
+
+
+def test_lattice_replacement_api_and_instance_expansion():
+    scene = Scene("substitution")
+    world = scene.define("world", Box(12, 8, 2), material="water")
+    tile = scene.define("default_tile", Box(2, 2, 2), material="water")
+    pin = scene.define("pin", Cylinder(0.4, 2), material="fuel")
+    tile.place(pin)
+    guide_tile = scene.define("guide_tile", Box(2, 2, 2), material="water")
+    guide = scene.define("guide", Cylinder(0.6, 2), material="steel")
+    guide_tile.place(guide)
+    lattice = world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
+                                 lower_left=(-3, -2, -1), name="grid")
+    assert lattice[0, 0, 0] is tile
+    lattice[1, 0, 0] = guide_tile
+    lattice.set_element(2, 1, 0, guide_tile)
+    assert lattice.get_element(1, 0, 0) is guide_tile
+    assert lattice[2, 1, 0] is guide_tile
+    lattice.clear_element(2, 1, 0)
+    assert lattice[2, 1, 0] is tile
+    lattice[2, 1, 0] = guide_tile
+    expanded = [inst for inst in scene.iter_instances() if inst.lattice_name == "grid"]
+    by_index = {inst.lattice_index: inst for inst in expanded}
+    assert by_index[(1, 0, 0)].volume_def is guide_tile
+    assert by_index[(2, 1, 0)].volume_def is guide_tile
+    assert by_index[(0, 0, 0)].volume_def is tile
+    assert "guide_tile" in scene.defs
+
+
+def test_lattice_replacement_index_validation():
+    scene = Scene("invalid_index")
+    world = scene.define("world", Box(6, 4, 2))
+    tile = scene.define("tile", Box(2, 2, 2))
+    replacement = scene.define("replacement", Box(2, 2, 2))
+    lattice = world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
+                                 lower_left=(-3, -2, -1))
+    with pytest.raises(IndexError):
+        lattice[3, 0, 0] = replacement
+    with pytest.raises(IndexError):
+        lattice[-1, 0, 0] = replacement
+    with pytest.raises(TypeError):
+        lattice[0.5, 0, 0] = replacement
+    with pytest.raises(IndexError):
+        lattice[0, 0] = replacement
+
+
+def test_lattice_replacement_rejects_cycles():
+    scene = Scene("replacement_cycle")
+    parent = scene.define("parent", Box(4, 4, 2))
+    tile = scene.define("tile", Box(2, 2, 2))
+    lattice = parent.place_lattice(tile, shape=(2, 2, 1), pitch=(2, 2, 2),
+                                  lower_left=(-2, -2, -1))
+    child = scene.define("child", Box(2, 2, 2))
+    child.place(parent)
+    with pytest.raises(ValueError, match="cycle"):
+        lattice[0, 0, 0] = child
+
+
+def test_lattice_replacement_requires_matching_tile_box():
+    scene = Scene("replacement_tile_validation")
+    parent = scene.define("parent", Box(6, 4, 2))
+    tile = scene.define("tile", Box(2, 2, 2))
+    lattice = parent.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
+                                  lower_left=(-3, -2, -1))
+    bad_size = scene.define("bad_size", Box(1, 2, 2))
+    bad_shape = scene.define("bad_shape", Sphere(1))
+    with pytest.raises(ValueError, match="match the lattice pitch"):
+        lattice[0, 0, 0] = bad_size
+    with pytest.raises(ValueError, match="must be a Box"):
+        lattice[0, 0, 0] = bad_shape

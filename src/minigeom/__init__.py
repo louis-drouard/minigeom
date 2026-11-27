@@ -1,6 +1,6 @@
 """MiniGeom: analytical hierarchical geometry with OpenMC export."""
 from .geometry import (
-    Box, Cone, Cylinder, Ellipsoid, LatticePlacement, MeshPrimitive, Placement, Plane,
+    Box, Cone, Cylinder, Ellipsoid, LatticePlacement, Placement, Plane,
     Primitive, Quadric, Sphere, Torus, VolumeDef, VolumeInstance,
 )
 from .scene import Scene
@@ -12,9 +12,12 @@ from .tripoli5_exporter import Tripoli5Exporter
 
 __all__ = [
     "Box", "Cone", "Cylinder", "Ellipsoid", "Plane", "Quadric", "Sphere", "Torus",
-    "Primitive", "MeshPrimitive", "Placement", "LatticePlacement", "VolumeDef", "VolumeInstance",
+    "Primitive", "Placement", "LatticePlacement", "VolumeDef", "VolumeInstance",
     "Scene", "CSGCompiler", "CSGModel", "RegionExpression",
     "as_region_expression", "union_all", "intersection_all",
     "OverlapChecker", "OverlapPair",
     "OverlapReport", "OpenMCExporter", "OpenMCHierarchyExporter", "Tripoli5Exporter",
 ]
+
+from .serialization import save_volume, load_volume
+__all__ += ["save_volume", "load_volume"]

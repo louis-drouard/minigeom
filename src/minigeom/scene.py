@@ -10,7 +10,7 @@ from typing import Iterator, Optional
 
 import numpy as np
 
-from .geometry import MeshPrimitive, Placement, VolumeDef, VolumeInstance
+from .geometry import Placement, VolumeDef, VolumeInstance
 
 
 def _require_trimesh():
@@ -118,25 +118,53 @@ class Scene:
         self.top_volume = volume
         return volume
 
-    def import_stl(self, name: str, filename: str | Path, *,
-                   material: str | None = None, scale: float = 1.0,
-                   process: bool = True, require_watertight: bool = True) -> VolumeDef:
-        """Import an STL mesh as a mesh-backed VolumeDef.
+    def save_volume(self, volume: str | VolumeDef, filename: str | Path) -> Path:
+        """Archive a volume definition and its complete dependency graph."""
+        from .serialization import save_volume
+        definition = self.defs[volume] if isinstance(volume, str) else volume
+        return save_volume(definition, filename)
 
-        STL files do not store reliable physical units or material composition.
-        ``scale`` converts file coordinates to the scene's length unit. The
-        resulting MeshPrimitive is intended for visualization/STL workflows;
-        analytical OpenMC and TRIPOLI-5 exporters reject it explicitly.
+    def load_volume(self, filename: str | Path, *, name: str | None = None,
+                    namespace: bool = True) -> VolumeDef:
+        """Load an archived graph and register it. Descendants are namespaced by default.
+
+        Namespace prefix is the loaded root's name, which avoids definition-name
+        collisions when assembling several archives containing common child names.
+        Set ``namespace=False`` to retain all archived definition names.
         """
-        shape = MeshPrimitive.from_file(
-            filename, scale=scale, process=process,
-            require_watertight=require_watertight,
-        )
-        volume = VolumeDef(name=name, shape=shape, material=material)
-        self.register(volume, include_children=False)
-        return volume
-
-    load_stl = import_stl
+        from .serialization import load_volume
+        definition = load_volume(filename, name=name)
+        if namespace:
+            prefix = definition.name
+            seen: set[int] = set()
+            descendants: list[VolumeDef] = []
+            def walk(current):
+                if id(current) in seen:
+                    return
+                seen.add(id(current))
+                for placement in current.children:
+                    child = placement.child
+                    if child is not definition:
+                        descendants.append(child)
+                    walk(child)
+                for lattice in current.lattices:
+                    if lattice.child is not definition:
+                        descendants.append(lattice.child)
+                    walk(lattice.child)
+                    for replacement in lattice.replacements.values():
+                        if replacement is not definition:
+                            descendants.append(replacement)
+                        walk(replacement)
+            walk(definition)
+            # Shared definitions can appear through several paths. Rename once.
+            renamed: set[int] = set()
+            for child in descendants:
+                if id(child) in renamed:
+                    continue
+                renamed.add(id(child))
+                child.name = f"{prefix}__{child.name}"
+        self.register(definition, include_children=True)
+        return definition
 
     def iter_instances(self, root: Optional[VolumeDef] = None) -> Iterator[VolumeInstance]:
         """Yield every placement occurrence, expanding rectangular lattice entries.
@@ -324,97 +352,6 @@ class Scene:
         combined = trimesh.util.concatenate(parts) if parts else trimesh.Trimesh()
         combined.export(path)
         return combined
-
-    @staticmethod
-    def _normalize_instance_path(instance_path) -> str:
-        if isinstance(instance_path, str):
-            return instance_path.strip("/")
-        return "/".join(str(part) for part in instance_path)
-
-    def export_instance_stl(self, instance_path: str | tuple[str, ...],
-                            filename: str | Path, *, resolved: bool = True) -> Path:
-        """Export one placed instance in world coordinates.
-
-        If ``resolved`` is true, sibling and parent/child priority rules are
-        applied using the preview mesh boolean backend. This is approximate
-        and may require ``manifold3d``.
-        """
-        _require_trimesh()
-        label = self._normalize_instance_path(instance_path)
-        instance = next((item for item in self.iter_instances() if item.label == label), None)
-        if instance is None:
-            raise KeyError(f"No scene instance has path '{label}'")
-        if resolved:
-            mesh = self._mesh_resolved_instances().get(label)
-        else:
-            mesh = instance.world_mesh()
-        if mesh is None or mesh.is_empty:
-            raise ValueError(f"Instance '{label}' has no exportable mesh")
-        path = Path(filename)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        mesh.export(path)
-        return path
-
-    def export_node_stl(self, node_path: str | tuple[str, ...],
-                        filename: str | Path, *, resolved: bool = True) -> Path:
-        """Export a node and all descendants as one STL mesh in world coordinates."""
-        _require_trimesh()
-        prefix = self._normalize_instance_path(node_path)
-        instances = list(self.iter_instances())
-        selected = [item for item in instances
-                    if item.label == prefix or item.label.startswith(prefix + "/")]
-        if not selected:
-            raise KeyError(f"No scene node matches instance path '{prefix}'")
-        if resolved:
-            mesh_map = self._mesh_resolved_instances()
-            parts = [mesh_map[item.label] for item in selected
-                     if mesh_map.get(item.label) is not None
-                     and not mesh_map[item.label].is_empty]
-        else:
-            parts = []
-            for item in selected:
-                mesh = item.world_mesh()
-                if mesh is not None and not mesh.is_empty:
-                    parts.append(mesh)
-        if not parts:
-            raise ValueError(f"Node '{prefix}' has no exportable mesh")
-        trimesh = _require_trimesh()
-        combined = trimesh.util.concatenate(parts) if len(parts) > 1 else parts[0]
-        path = Path(filename)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        combined.export(path)
-        return path
-
-    def export_volume_stl(self, volume: str | VolumeDef, filename: str | Path, *,
-                          instance_path: str | tuple[str, ...] | None = None,
-                          include_children: bool = False, resolved: bool = True) -> Path:
-        """Export a definition occurrence, or its complete subtree, as STL.
-
-        A reused VolumeDef may have several occurrences. In that case provide
-        ``instance_path`` to select the desired occurrence.
-        """
-        definition = self.defs[volume] if isinstance(volume, str) else volume
-        if instance_path is None:
-            matches = [item for item in self.iter_instances()
-                       if item.volume_def is definition]
-            if len(matches) != 1:
-                labels = [item.label for item in matches]
-                raise ValueError(
-                    f"Volume '{definition.name}' has {len(matches)} occurrences; "
-                    f"select one with instance_path. Available paths: {labels}"
-                )
-            label = matches[0].label
-        else:
-            label = self._normalize_instance_path(instance_path)
-            match = next((item for item in self.iter_instances()
-                          if item.label == label and item.volume_def is definition), None)
-            if match is None:
-                raise KeyError(
-                    f"Instance path '{label}' does not refer to VolumeDef '{definition.name}'"
-                )
-        if include_children:
-            return self.export_node_stl(label, filename, resolved=resolved)
-        return self.export_instance_stl(label, filename, resolved=resolved)
 
     def export_stl(self, filename: str | Path, *, resolved: bool = True) -> trimesh.Trimesh:
         """Export the complete scene as one STL mesh."""

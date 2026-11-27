@@ -1,35 +1,27 @@
 # Changelog
 
-## 0.2.0
+## 0.10.0
 
-- Added sparse per-element replacements to `LatticePlacement`.
-- Added indexing syntax `lattice[i, j, k] = volume`, `get_element`,
-  `set_element`, and `clear_element`.
-- Scene instance traversal now expands replacement universes at the corresponding
-  lattice coordinates.
-- OpenMC hierarchy export writes replacement universes into native `RectLattice`
-  arrays using OpenMC's reversed-Y array convention.
-- TRIPOLI-5 hierarchy export assigns replacement universes directly into native
-  AGORA rectangular lattices.
-- Added a 17x17 lattice guide-tube example and regression tests for both exporters.
+- Added safe, versioned `.mgz` volume archives with JSON data stored in ZIP containers.
+- Archives preserve primitive parameters, materials, placements, priorities, explicit Boolean region cells, native lattices, sparse substitutions, and shared graph references.
+- Added `save_volume()` / `load_volume()` functions and `Scene.save_volume()` / `Scene.load_volume()` methods.
+- Removed STL import into geometry volumes and per-volume, per-instance, and per-node STL export APIs. Full-scene STL export and scene preview remain available as optional mesh features.
+- Removed the `MeshPrimitive` volume class and associated import workflow.
+- CANDU examples now skip OpenMC and TRIPOLI-5 exports when their respective Python packages are absent.
+- Updated CANDU example tests for the current script-based construction API and fixed the test subprocess import path for the `src/` package layout.
 
-## 0.1.0
 
-- Separated the analytical geometry core from optional triangle-mesh tooling. Trimesh is no longer a mandatory dependency and is imported lazily only for mesh/STL operations.
-- Added `region_expr.py`, a backend-independent high-level Boolean expression API supporting intersection (`&`), union (`|`), difference (`-`), complement (`~`), translated/rotated operands, `union_all()` and `intersection_all()`.
-- Added `VolumeDef.add_cell()` / `add_region_cell()` for explicit analytical cell partitions in a universe.
-- Extended `CSGCompiler` to transform, clip, prioritize and serialize explicit region cells using the same analytical surface registry as implicit hierarchy cells.
-- Added raw explicit-cell footprints to overlap diagnostics.
-- Updated OpenMC and TRIPOLI-5 exporters to select the flat CSG backend automatically when explicit Boolean cells are present; forced hierarchy mode reports the incompatibility.
-- Added `examples/candu_hierarchical.py` and `examples/candu_boolean_regions.py`, two equivalent constructions of the CANDU 37-pin assembly.
-- Added extensive English comments explaining the set-theoretic and coordinate-transform meaning of Boolean expressions and CSG compilation.
-- Moved Trimesh, Manifold3D and PyVista into optional installation extras.
-- Added tests for Boolean operations, explicit-cell priority, transformations, domain clipping, exporter fallback and both CANDU examples.
-- Fix the open-STL test fixture so it does not call `trimesh.Trimesh.slice_plane()`, which imports the optional SciPy dependency.
-- Keep SciPy optional; MiniGeom's STL import path does not require it.
-- OpenMC geometry export assigns deterministic numeric material IDs to non-void symbolic tags.
-- Added `materials_ids.json` with tag-to-ID mapping and source metadata.
-- Added optional real `openmc.Material` binding and conditional `materials.xml` export.
-- Added TRIPOLI-5 AGORA exporter for analytical CSG, nested universes, rectangular lattices and material-name tags.
-- Added STL import/export for definitions, instances, nodes and scenes.
-- Clarified that imported STL meshes are not analytical CSG surfaces.
+## 0.9.1 / 0.9.0
+
+- Sparse per-element lattice replacements with indexing syntax `lattice[i, j, k] = volume`.
+- Scene traversal expands replacement universes at the corresponding lattice coordinates.
+- OpenMC and TRIPOLI-5 exporters retain native rectangular lattices and sparse replacements.
+- Added a 17x17 lattice guide-tube example and exporter regression tests.
+
+
+## 0.1.0–0.2.0
+
+- Added backend-independent Boolean region expressions, explicit analytical region cells, overlap diagnostics, and the common analytical CSG compiler.
+- Added OpenMC geometry export and TRIPOLI-5 AGORA export, including hierarchy, rectangular lattices and material tags.
+- Added optional Trimesh, Manifold3D and PyVista tooling for primitive preview and mesh workflows.
+- Added equivalent CANDU 37-pin examples in implicit hierarchy and explicit Boolean forms.

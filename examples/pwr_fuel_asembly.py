@@ -6,9 +6,9 @@ pitch = pincell_pitch * nb_pincells
 height = 427.0
 water_blade_thickness = 0.07792594
 total_size = pitch+water_blade_thickness*2
-scene = Scene()
 
-water_background = scene.define("assembly",Box(total_size, total_size, height), 'water')
+scene = Scene()
+water_background = scene.define("assembly",Box(total_size, total_size, height), 'water') # world
 
 fuel_pincell = scene.define("fuel_pincell", Box(pincell_pitch, pincell_pitch, height), "water")
 fuel = scene.define("fuel", Cylinder(0.41266, height), "fuel")

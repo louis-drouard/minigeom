@@ -7,9 +7,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from pathlib import Path
 import math
-from typing import Iterable
 
 import numpy as np
 
@@ -90,71 +88,6 @@ class Primitive:
     def local_bounds(self) -> tuple[np.ndarray, np.ndarray] | None:
         """Conservative local AABB; None means unbounded or not known."""
         return None
-
-
-@dataclass
-class MeshPrimitive(Primitive):
-    """Imported triangle mesh used for visualization and mesh export only.
-
-    MeshPrimitive is deliberately not part of the analytical CSG surface model.
-    It can be placed, previewed and exported as STL, but analytical exporters
-    (OpenMC and TRIPOLI-5) reject it unless it is converted to supported primitives.
-    """
-    mesh_data: object
-    source: str | None = None
-    is_bounded = True
-
-    def __post_init__(self):
-        trimesh = _require_trimesh()
-        if not isinstance(self.mesh_data, trimesh.Trimesh):
-            raise TypeError("MeshPrimitive.mesh_data must be a trimesh.Trimesh")
-        if self.mesh_data.is_empty or len(self.mesh_data.faces) == 0:
-            raise ValueError("MeshPrimitive requires a non-empty triangular mesh")
-        self.mesh_data = self.mesh_data.copy()
-        if not np.all(np.isfinite(self.mesh_data.bounds)):
-            raise ValueError("MeshPrimitive contains non-finite vertex coordinates")
-
-    @classmethod
-    def from_file(cls, filename, *, scale: float = 1.0, process: bool = True,
-                  require_watertight: bool = True) -> "MeshPrimitive":
-        """Load an STL/mesh file. STL units are not encoded; ``scale`` is explicit."""
-        trimesh = _require_trimesh()
-        path = Path(filename)
-        if not path.is_file():
-            raise FileNotFoundError(f"Mesh file not found: {path}")
-        if not math.isfinite(scale) or scale <= 0:
-            raise ValueError("scale must be a finite positive value")
-        loaded = trimesh.load(path, force="mesh", process=process)
-        if isinstance(loaded, trimesh.Scene):
-            geometries = [g for g in loaded.geometry.values() if isinstance(g, trimesh.Trimesh)]
-            if not geometries:
-                raise ValueError(f"No triangle mesh was found in: {path}")
-            loaded = trimesh.util.concatenate(geometries)
-        if not isinstance(loaded, trimesh.Trimesh) or loaded.is_empty:
-            raise ValueError(f"The file does not contain a usable triangle mesh: {path}")
-        loaded.apply_scale(float(scale))
-        if require_watertight and not loaded.is_watertight:
-            raise ValueError(
-                f"The imported mesh is not watertight: {path}. "
-                "Set require_watertight=False only when a non-solid mesh is intentional."
-            )
-        return cls(mesh_data=loaded, source=str(path.resolve()))
-
-    def mesh(self) -> trimesh.Trimesh:
-        _require_trimesh()
-        return self.mesh_data.copy()
-
-    def analytic(self) -> dict:
-        """Return mesh provenance metadata; this is not an analytical surface."""
-        return {
-            "type": "mesh",
-            "source": self.source,
-            "vertices": int(len(self.mesh_data.vertices)),
-            "faces": int(len(self.mesh_data.faces)),
-        }
-
-    def local_bounds(self):
-        return self.mesh_data.bounds[0].copy(), self.mesh_data.bounds[1].copy()
 
 
 @dataclass
@@ -805,16 +738,6 @@ class VolumeDef:
 
     def ordered_children(self):
         return sorted(self.children, key=lambda p: (p.priority, p._order), reverse=True)
-
-    def export_stl(self, filename: str | Path) -> Path:
-        """Export this definition's local primitive mesh without its placements."""
-        if self.shape is None:
-            raise ValueError(f"Volume '{self.name}' has no primitive to export")
-        mesh = self.shape.mesh()
-        path = Path(filename)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        mesh.export(path)
-        return path
 
     def clone(self, name: str | None = None, *, material=_MATERIAL_UNSET,
               self_priority: int | None = None, copy_children: bool = True) -> "VolumeDef":

@@ -10,7 +10,7 @@ from typing import Iterable
 import numpy as np
 
 from .geometry import (
-    Box, Cone, Cylinder, Ellipsoid, MeshPrimitive, Plane, Quadric, Sphere, Torus,
+    Box, Cone, Cylinder, Ellipsoid, Plane, Quadric, Sphere, Torus,
     VolumeInstance,
 )
 
@@ -393,13 +393,6 @@ class CSGCompiler:
         rotation = np.asarray(matrix[:3, :3], dtype=float)
         translation = np.asarray(matrix[:3, 3], dtype=float)
         surfaces: list[SurfaceSpec] = []
-
-        if isinstance(shape, MeshPrimitive):
-            raise NotImplementedError(
-                "MeshPrimitive is a tessellated display/import object and cannot be "
-                "compiled to analytical CSG. Use an analytical primitive for OpenMC "
-                "or TRIPOLI-5 export, or export the mesh as STL."
-            )
 
         if isinstance(shape, Sphere):
             # Sphere boundary: (x-x0)^2 + (y-y0)^2 + (z-z0)^2 - R^2 = 0.

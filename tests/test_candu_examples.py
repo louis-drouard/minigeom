@@ -30,8 +30,8 @@ def test_hierarchical_and_boolean_candu_examples_have_same_material_probes():
         "candu_boolean_example", EXAMPLES / "candu_boolean_regions.py"
     )
 
-    hierarchy_scene = hierarchical.build_candu_assembly()
-    boolean_scene = boolean.build_candu_boolean_scene()
+    hierarchy_scene = hierarchical.scene
+    boolean_scene = boolean.scene
     hierarchy_model = CSGCompiler(boundary_type="reflective").compile(hierarchy_scene)
     boolean_model = CSGCompiler(boundary_type="reflective").compile(boolean_scene)
 

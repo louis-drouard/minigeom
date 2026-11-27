@@ -14,6 +14,7 @@ backend. The flat backend preserves the Boolean surfaces/cells directly and is
 supported by both the OpenMC and TRIPOLI-5 exporters.
 """
 import argparse
+import importlib.util
 import math
 from pathlib import Path
 
@@ -211,13 +212,25 @@ assembly.add_cell(
 
 scene.set_top(assembly)
 
-exporter = Tripoli5Exporter(
-    scene, boundary_type="reflective", mode="flat"
-)
-exporter.export("candu_boolean.agora")
+if importlib.util.find_spec("tripoli5") is not None:
+    try:
+        exporter = Tripoli5Exporter(
+            scene, boundary_type="reflective", mode="flat"
+        )
+        exporter.export("candu_boolean.agora")
+    except ImportError:
+        print("TRIPOLI-5 API unavailable: skipping AGORA export.")
+else:
+    print("TRIPOLI-5 not installed: skipping AGORA export.")
 
-exporter = OpenMCExporter(
-    scene, boundary_type="reflective", mode="flat"
-)
-exporter.export_geometry("openmc")
+if importlib.util.find_spec("openmc") is not None:
+    try:
+        exporter = OpenMCExporter(
+            scene, boundary_type="reflective", mode="flat"
+        )
+        exporter.export_geometry("openmc")
+    except ImportError:
+        print("OpenMC API unavailable: skipping OpenMC export.")
+else:
+    print("OpenMC not installed: skipping OpenMC export.")
 

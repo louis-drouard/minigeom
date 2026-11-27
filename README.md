@@ -1,11 +1,11 @@
-# MiniGeom 0.2.0
+# MiniGeom 0.10.0
 
 MiniGeom is a backend-independent analytical geometry builder for Monte-Carlo transport geometries. It provides two complementary ways to describe a geometry:
 
 1. **Implicit hierarchy**: define reusable volumes and place children inside parent volumes. MiniGeom resolves the resulting material regions from containment and priority rules.
 2. **Explicit Boolean regions**: define cells directly with set operations on analytical primitives (`&`, `|`, `-`, `~`). MiniGeom compiles those expressions into the same analytical CSG representation.
 
-Both descriptions feed the same analytical surface registry and the same OpenMC/TRIPOLI-5 exporters. Triangle meshes are a separate, optional representation used only for previews, STL import/export and approximate mesh booleans. They are never used to produce transport-code boundaries.
+Both descriptions feed the same analytical surface registry and the same OpenMC/TRIPOLI-5 exporters. Triangle meshes are an optional representation used only for scene preview and full-scene STL export with approximate mesh booleans. They are never used to produce transport-code boundaries.
 
 ## Architecture
 
@@ -29,7 +29,7 @@ Both descriptions feed the same analytical surface registry and the same OpenMC/
              OpenMC XML                TRIPOLI-5 AGORA
 
        Optional display/interchange path (independent):
-       Primitive.mesh / MeshPrimitive / Trimesh / PyVista / STL
+       Primitive.mesh / Trimesh / PyVista / full-scene STL
 ```
 
 ### Source modules
@@ -52,13 +52,13 @@ pip install -e .
 
 ### Optional mesh features
 
-Trimesh is not a core dependency. Install it only when you need STL import/export or primitive preview meshes:
+Trimesh is not a core dependency. Install it only when you need primitive preview meshes or full-scene STL export:
 
 ```bash
 pip install -e ".[mesh]"
 ```
 
-Install the Manifold backend for approximate mesh boolean operations (preview/STL overlap resolution):
+Install the Manifold backend for approximate mesh boolean operations (resolved scene preview/export):
 
 ```bash
 pip install -e ".[mesh-boolean]"
@@ -259,9 +259,9 @@ exporter.export("geometry.agora")
 
 TRIPOLI-5 requires every material leaf to carry a material-name string (or the exporter must receive `default_material`). MiniGeom does not create TRIPOLI-5 nuclear material definitions.
 
-## Optional mesh workflow: preview and STL only
+## Optional mesh workflow: preview and full-scene STL export
 
-Meshes are a separate representation. They are useful for visual inspection, CAD interchange and checking a model visually, but they do not define the simulation geometry. Analytical exporters reject `MeshPrimitive` because a triangle mesh is not an exact analytical boundary.
+MiniGeom does not import STL files as geometry volumes and does not export individual volume definitions or placements to STL. The optional mesh path is reserved for visualization and exporting the complete scene as a tessellated preview. These meshes never define transport-code boundaries.
 
 Install the optional mesh dependency first:
 
@@ -269,24 +269,7 @@ Install the optional mesh dependency first:
 pip install -e ".[mesh]"
 ```
 
-Import an STL:
-
-```python
-scene = Scene("cad_import")
-part = scene.import_stl(
-    "cad_part", "cad_part.stl", scale=0.1,
-    material="steel", require_watertight=True,
-)
-```
-
-Export a placed instance or node:
-
-```python
-scene.export_instance_stl("world/cad_part#1", "part_world.stl", resolved=False)
-scene.export_node_stl("world", "world_subtree.stl", resolved=False)
-```
-
-Export a mesh preview of the complete scene:
+Export the complete scene or display it interactively:
 
 ```python
 scene.export_stl("scene_preview.stl", resolved=False)
@@ -294,6 +277,28 @@ scene.show(resolved=False)
 ```
 
 `resolved=True` applies priority rules using approximate triangle-mesh booleans. It requires `pip install -e ".[mesh-boolean]"` and can introduce tessellation artifacts. It is never used by the OpenMC or TRIPOLI-5 exporters.
+
+## Volume archives (`.mgz`)
+
+MiniGeom can archive a complete analytical `VolumeDef` graph in a standalone, versioned `.mgz` file (ZIP containing JSON). Archives preserve primitive parameters, volume/material tags, placements and priorities, explicit Boolean region cells, rectangular lattices, sparse lattice replacements, and shared definition references. Mesh-backed volumes are not supported. The format does not use `pickle` or execute archived code.
+
+Save a component from a scene:
+
+```python
+scene.save_volume("fuel_assembly", "fuel_assembly.mgz")
+```
+
+Load it into a different scene (the loaded graph is registered in that scene):
+
+```python
+final_scene = Scene("reactor")
+assembly = final_scene.load_volume("fuel_assembly.mgz")
+reactor = final_scene.define("reactor", Box(200, 200, 400), material="water")
+reactor.place(assembly, name="assembly_001")
+final_scene.set_top(reactor)
+```
+
+Standalone functions are also available: `save_volume(volume, path)` and `load_volume(path, name=None)`. The optional `name` argument renames only the archived root definition. `Scene.load_volume()` namespaces descendant definition names by the loaded root name by default, allowing several archives with generic internal names (such as `fuel`) to coexist; pass `namespace=False` to retain archived names. Archive format versioning is separate from the MiniGeom package version.
 
 ## Overlap diagnostics
 
@@ -312,14 +317,14 @@ pip install -e ".[test]"
 python -m pytest -q
 ```
 
-The test suite covers implicit CSG, explicit Boolean regions, the two CANDU examples, STL workflows and mocked OpenMC/TRIPOLI-5 API object graphs. Mocked exporters do not replace a run with the installed transport-code release; validate representative XML/AGORA outputs with your actual installations before production use.
+The test suite covers implicit CSG, explicit Boolean regions, the two CANDU examples, volume archive round-trips and mocked OpenMC/TRIPOLI-5 API object graphs. Mocked exporters do not replace a run with the installed transport-code release; validate representative XML/AGORA outputs with your actual installations before production use.
 
 ## Current limitations
 
 - A universe cannot currently mix explicit `add_cell()` definitions with implicit child/lattice placements in the same `VolumeDef`.
 - Only rectangular lattices are exposed by the MiniGeom API; hexagonal lattices are not implemented.
 - The root of a rectangular lattice tile must be a `Box` matching the lattice pitch.
-- STL imports are mesh-backed and cannot be exported as analytical OpenMC/TRIPOLI-5 surfaces without manual reconstruction.
+- `.mgz` archives preserve analytical geometry only; mesh-based volumes are not supported.
 - Mesh boolean results are approximate, preview-oriented tessellations.
 - The overlap checker is sampling-based, not a formal mathematical proof.
 - OpenMC torus axes must be aligned with a global coordinate axis after placement.

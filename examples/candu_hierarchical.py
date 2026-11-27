@@ -10,6 +10,7 @@ All dimensions are in centimetres. The model is a single repeating assembly
 with reflective boundary conditions on the six outer faces.
 """
 import math
+import importlib.util
 from minigeom import Box, Cylinder, Scene, Tripoli5Exporter
 
 # Reference geometry parameters (cm)
@@ -105,10 +106,18 @@ _place_pin_ring(bundle, pin, 3)
 scene.set_top(assembly)
 
 # Direct AGORA export requires an installed TRIPOLI-5 Python API.
-exporter = Tripoli5Exporter(
-    scene,
-    boundary_type="reflective",
-    mode="hierarchy",
-    optimize_repeated=True,
-)
-agora_path = exporter.export("candu_assembly.agora")
+if importlib.util.find_spec("tripoli5") is not None:
+    try:
+        exporter = Tripoli5Exporter(
+            scene,
+            boundary_type="reflective",
+            mode="hierarchy",
+            optimize_repeated=True,
+        )
+        agora_path = exporter.export("candu_assembly.agora")
+    except ImportError:
+        agora_path = None
+        print("TRIPOLI-5 API unavailable: skipping AGORA export.")
+else:
+    agora_path = None
+    print("TRIPOLI-5 not installed: skipping AGORA export.")

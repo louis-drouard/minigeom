@@ -31,7 +31,7 @@ else:
     raise AssertionError("A preview mesh should require the optional mesh extra")
 '''
     environment = dict(os.environ)
-    environment["PYTHONPATH"] = str(project_root)
+    environment["PYTHONPATH"] = str(project_root / "src")
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd=project_root,

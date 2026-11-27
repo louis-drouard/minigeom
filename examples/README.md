@@ -76,7 +76,7 @@ in CSG representation, not a change in the physical geometry.
 
 Neither script needs Trimesh or PyVista. The transport-code exporters consume
 the analytical CSG representation directly. Mesh dependencies are only needed
-for STL import/export and visualization workflows.
+for primitive previews, visualization and full-scene STL exports.
 
 ## Native lattice element replacements
 
@@ -85,3 +85,7 @@ for STL import/export and visualization workflows.
 indices. Index tuples are MiniGeom's natural `(i, j, k)` ordering. The script
 compiles the geometry analytically and prints a small summary; use installed
 OpenMC/TRIPOLI-5 and their respective exporters for engine-native export.
+
+## Modular volume archives
+
+See `save_volume` / `load_volume` and the `Scene.save_volume()` / `Scene.load_volume()` methods for archiving analytical component definitions as `.mgz` files and reusing them in a final assembly script.

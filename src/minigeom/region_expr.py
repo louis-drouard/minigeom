@@ -23,7 +23,7 @@ from typing import Iterable
 
 import numpy as np
 
-from .geometry import Primitive, MeshPrimitive, _transform, _rotation_xyz
+from .geometry import Primitive, _transform, _rotation_xyz
 
 
 @dataclass(frozen=True)
@@ -60,11 +60,6 @@ def _coerce_node(value) -> ExpressionNode:
     if isinstance(value, RegionExpression):
         return value._node
     if isinstance(value, Primitive):
-        if isinstance(value, MeshPrimitive):
-            raise TypeError(
-                "MeshPrimitive cannot be used in an analytical Boolean expression. "
-                "Use analytical primitives or keep the mesh in the preview/STL workflow."
-            )
         return _ShapeLeaf.create(value)
     raise TypeError(
         "A Boolean region operand must be an analytical Primitive or RegionExpression; "

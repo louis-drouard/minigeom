@@ -1,7 +1,7 @@
 [project]
 name = "minigeom"
-version = "0.2.0"
-description = "Backend-independent analytical CSG geometry builder with optional mesh, OpenMC and TRIPOLI-5 workflows"
+version = "0.10.0"
+description = "Backend-independent analytical CSG geometry builder with modular volume archives and OpenMC/TRIPOLI-5 exporters"
 readme = "README.md"
 authors = [
     { name = "Louis DROUARD" }

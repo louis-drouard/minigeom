@@ -1,4 +1,4 @@
-from minigeom import Box, Cylinder, Scene, Tripoli5Exporter
+from minigeom import Box, Cylinder, Scene, Tripoli5Exporter, OpenMCExporter
 
 pincell_pitch = 1.262082
 nb_pincells = 17
@@ -11,18 +11,16 @@ scene = Scene()
 water_background = scene.define("assembly",Box(total_size, total_size, height), 'water') # world
 
 fuel_pincell = scene.define("fuel_pincell", Box(pincell_pitch, pincell_pitch, height), "water")
-fuel = scene.define("fuel", Cylinder(0.41266, height), "fuel")
-clad_ir = scene.define("clad_ir", Cylinder(0.41690, height), "void")
-clad_or = scene.define("clad_or", Cylinder(0.47436, height), "clad")
+fuel = scene.define("fuel", Cylinder(outer_radius=0.41266, height=height), "fuel")
+clad_ir = scene.define("clad_ir", Cylinder(outer_radius=0.41690, height=height), "void")
+clad_or = scene.define("clad_or", Cylinder(outer_radius=0.47436, height=height), "clad")
 clad_ir.place(fuel)
 clad_or.place(clad_ir)
 fuel_pincell.place(clad_or)
 
 gt_pincell = scene.define("gt_pincell", Box(pincell_pitch, pincell_pitch, height), "water")
-gtclad_ir = scene.define("gtclad_ir", Cylinder(0.56343, height), "water")
-gtclad_or = scene.define("gtclad_or" , Cylinder(0.6035, height), "clad")
-gtclad_or.place(gtclad_ir)
-gt_pincell.place(gtclad_or)
+gt_clad = scene.define("gtclad_or" , Cylinder(outer_radius=0.6035, height=height, inner_radius=0.56343), "clad")
+gt_pincell.place(gt_clad)
 
 lattice = water_background.place_lattice(
     fuel_pincell,
@@ -60,6 +58,10 @@ lattice[8, 14, 0] = gt_pincell
 lattice[11, 14, 0] = gt_pincell
 
 scene.set_top(water_background)
+# scene.view()
 
-exporter = Tripoli5Exporter(scene, boundary_type="reflective")
-agora_path = exporter.export("candu_assembly.agora")
+# exporter = Tripoli5Exporter(scene, boundary_type="reflective")
+# agora_path = exporter.export("candu_assembly.agora")
+
+exporter = OpenMCExporter(scene, boundary_type="reflective")
+openmc_path = exporter.export("pwr_assembly_openmc")

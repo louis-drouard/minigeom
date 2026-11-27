@@ -185,10 +185,10 @@ def test_lattice_replacement_api_and_instance_expansion():
     scene = Scene("substitution")
     world = scene.define("world", Box(12, 8, 2), material="water")
     tile = scene.define("default_tile", Box(2, 2, 2), material="water")
-    pin = scene.define("pin", Cylinder(0.4, 2), material="fuel")
+    pin = scene.define("pin", Cylinder(outer_radius=0.4, height=2), material="fuel")
     tile.place(pin)
     guide_tile = scene.define("guide_tile", Box(2, 2, 2), material="water")
-    guide = scene.define("guide", Cylinder(0.6, 2), material="steel")
+    guide = scene.define("guide", Cylinder(outer_radius=0.6, height=2), material="steel")
     guide_tile.place(guide)
     lattice = world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
                                  lower_left=(-3, -2, -1), name="grid")

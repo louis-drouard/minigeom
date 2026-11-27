@@ -1,4 +1,5 @@
 import json
+import math
 
 import pytest
 
@@ -93,7 +94,7 @@ def test_shape_less_group_does_not_create_infinite_cell():
 def test_rotated_finite_cylinder_is_analytic_quadric():
     scene = Scene("rotated_cylinder")
     world = scene.define("world", Box(20, 20, 20), material="air")
-    cyl = scene.define("cyl", Cylinder(1, 8), material="steel")
+    cyl = scene.define("cyl", Cylinder(outer_radius=1, height=8), material="steel")
     world.place(cyl, rotate=(0, 90, 0))
     model = CSGCompiler().compile(scene)
     assert locate(model, (3, 0, 0)) == "steel"
@@ -146,7 +147,7 @@ def test_root_boundary_is_marked_and_internal_boundaries_transmit():
 def test_reused_volume_definition_creates_separate_instances():
     scene = Scene("repeated")
     world = scene.define("world", Box(20, 20, 20), material="air")
-    pin = scene.define("pin", Cylinder(1, 5), material="steel")
+    pin = scene.define("pin", Cylinder(outer_radius=1, height=5), material="steel")
     world.place(pin, at=(-3, 0, 0), name="pin_left")
     world.place(pin, at=(3, 0, 0), name="pin_right")
     model = CSGCompiler().compile(scene)
@@ -184,3 +185,48 @@ def test_clone_can_explicitly_clear_material_tag():
     clone = ball.clone(material=None)
     assert clone.material is None
     assert ball.material == "steel"
+
+
+def test_annular_cylinder_has_material_only_in_wall():
+    scene = Scene("annular_cylinder")
+    world = scene.define("world", Box(20, 20, 20), material="water")
+    tube = scene.define("tube", Cylinder(outer_radius=2.0, inner_radius=1.0, height=8.0), material="steel")
+    world.place(tube)
+    model = CSGCompiler().compile(scene)
+    assert locate(model, (0.0, 0.0, 0.0)) == "water"
+    assert locate(model, (1.5, 0.0, 0.0)) == "steel"
+    assert locate(model, (3.0, 0.0, 0.0)) == "water"
+    assert locate(model, (1.5, 0.0, 4.5)) == "water"
+
+
+def test_rotated_annular_cylinder_has_correct_void_and_wall():
+    scene = Scene("rotated_annular_cylinder")
+    world = scene.define("world", Box(20, 20, 20), material="water")
+    tube = scene.define("tube", Cylinder(outer_radius=2.0, inner_radius=1.0, height=8.0), material="steel")
+    world.place(tube, rotate=(0, 90, 0))
+    model = CSGCompiler().compile(scene)
+    assert locate(model, (3.0, 0.0, 0.0)) == "water"  # axial cavity
+    assert locate(model, (3.0, 0.0, 1.5)) == "steel"  # radial wall
+    assert locate(model, (5.0, 0.0, 1.5)) == "water"  # beyond cap
+
+
+def test_cylinder_radius_validation():
+    import pytest
+    with pytest.raises(ValueError, match="inner_radius"):
+        Cylinder(outer_radius=1.0, inner_radius=-0.1, height=2.0)
+    with pytest.raises(ValueError, match="smaller than outer_radius"):
+        Cylinder(outer_radius=1.0, inner_radius=1.0, height=2.0)
+    with pytest.raises(ValueError, match="smaller than outer_radius"):
+        Cylinder(outer_radius=1.0, inner_radius=1.1, height=2.0)
+    with pytest.raises(TypeError):
+        Cylinder(radius=1.0, height=2.0)
+
+
+def test_annular_cylinder_mesh_is_watertight_and_positive_volume():
+    trimesh = pytest.importorskip("trimesh")
+    mesh = Cylinder(outer_radius=2.0, inner_radius=1.0, height=5.0, sections=32).mesh()
+    assert mesh.is_watertight
+    assert mesh.is_winding_consistent
+    assert mesh.volume > 0.0
+    expected = math.pi * (2.0**2 - 1.0**2) * 5.0
+    assert mesh.volume == pytest.approx(expected, rel=0.02)

@@ -3,7 +3,7 @@ from minigeom import Box, Cylinder, Scene, Sphere, Tripoli5Exporter
 
 scene = Scene("tripoli_detector")
 world = scene.define("world", Box(100, 100, 100), material="AIR")
-shield = scene.define("shield", Cylinder(20, 60), material="LEAD")
+shield = scene.define("shield", Cylinder(outer_radius=20, height=60), material="LEAD")
 target = scene.define("target", Sphere(3), material="TUNGSTEN")
 world.place(shield, priority=10)
 shield.place(target, priority=20)

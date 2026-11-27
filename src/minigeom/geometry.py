@@ -116,15 +116,26 @@ class Sphere(Primitive):
 
 @dataclass
 class Cylinder(Primitive):
-    """Finite cylinder centered at origin, with its axis along local Z."""
-    radius: float
+    """Finite solid or annular cylinder centered at origin, axis along local Z.
+
+
+    ``outer_radius`` is mandatory. ``inner_radius`` defaults to zero for a solid.
+    """
+    outer_radius: float
     height: float
     sections: int = 64
+    inner_radius: float = 0.0
     is_bounded = True
 
+
+
     def __post_init__(self):
-        if not math.isfinite(self.radius) or self.radius <= 0:
-            raise ValueError("Cylinder.radius must be finite and strictly positive")
+        if not math.isfinite(self.outer_radius) or self.outer_radius <= 0:
+            raise ValueError("Cylinder.outer_radius must be finite and strictly positive")
+        if not math.isfinite(self.inner_radius) or self.inner_radius < 0:
+            raise ValueError("Cylinder.inner_radius must be finite and non-negative")
+        if self.inner_radius >= self.outer_radius:
+            raise ValueError("Cylinder.inner_radius must be smaller than outer_radius")
         if not math.isfinite(self.height) or self.height <= 0:
             raise ValueError("Cylinder.height must be finite and strictly positive")
         if not isinstance(self.sections, int) or self.sections < 8:
@@ -132,14 +143,46 @@ class Cylinder(Primitive):
 
     def mesh(self) -> trimesh.Trimesh:
         trimesh = _require_trimesh()
-        return trimesh.creation.cylinder(radius=self.radius, height=self.height, sections=self.sections)
+        if self.inner_radius == 0:
+            return trimesh.creation.cylinder(radius=self.outer_radius, height=self.height, sections=self.sections)
+
+        n = self.sections
+        angles = np.linspace(0.0, 2.0 * math.pi, n, endpoint=False)
+        outer = np.column_stack((self.outer_radius * np.cos(angles),
+                               self.outer_radius * np.sin(angles)))
+        inner = np.column_stack((self.inner_radius * np.cos(angles),
+                               self.inner_radius * np.sin(angles)))
+        z0, z1 = -self.height / 2.0, self.height / 2.0
+        vertices = np.vstack((
+            np.column_stack((outer, np.full(n, z0))),  # outer bottom
+            np.column_stack((outer, np.full(n, z1))),  # outer top
+            np.column_stack((inner, np.full(n, z0))),  # inner bottom
+            np.column_stack((inner, np.full(n, z1))),  # inner top
+        ))
+        ob, ot, ib, it = 0, n, 2*n, 3*n
+        faces = []
+        for q in range(n):
+            r = (q + 1) % n
+            # Outer side, oriented outward.
+            faces.extend(((ob+q, ob+r, ot+r), (ob+q, ot+r, ot+q)))
+            # Inner side, oriented into the void.
+            faces.extend(((ib+q, it+r, ib+r), (ib+q, it+q, it+r)))
+            # Upper annular cap, normal +Z.
+            faces.extend(((ot+q, ot+r, it+r), (ot+q, it+r, it+q)))
+            # Lower annular cap, normal -Z.
+            faces.extend(((ob+q, ib+r, ob+r), (ob+q, ib+q, ib+r)))
+        return trimesh.Trimesh(vertices=vertices, faces=np.asarray(faces, dtype=np.int64), process=True)
+
 
     def analytic(self) -> dict:
-        return {"type": "cylinder", "radius": float(self.radius),
-                "height": float(self.height), "axis": [0., 0., 1.]}
+        return {"type": "cylinder", "outer_radius": float(self.outer_radius),
+                "inner_radius": float(self.inner_radius), "height": float(self.height),
+                "axis": [0., 0., 1.]}
+
+
 
     def local_bounds(self):
-        h = np.array([self.radius, self.radius, self.height / 2.])
+        h = np.array([self.outer_radius, self.outer_radius, self.height / 2.])
         return -h, h
 
 

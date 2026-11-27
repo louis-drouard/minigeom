@@ -1,0 +1,28 @@
+{
+  "scene": "scene",
+  "export_mode": "hierarchy",
+  "hierarchy_fallback_reason": null,
+  "geometry_xml": "geometry.xml",
+  "materials_xml": null,
+  "materials_ids_json": "materials_ids.json",
+  "materials_exported": false,
+  "material_mode": "symbolic",
+  "unbound_material_tags": [
+    "clad",
+    "fuel",
+    "water"
+  ],
+  "material_ids": {
+    "clad": 1,
+    "fuel": 2,
+    "water": 3
+  },
+  "csg_json": "minigeom_csg.json",
+  "flattened_csg_cells": 0,
+  "flattened_csg_surfaces": 884,
+  "openmc_cells": 13,
+  "openmc_universes": 8,
+  "openmc_lattices": 1,
+  "boundary_type": "reflective",
+  "note": "The CSG JSON is the flattened MiniGeom representation. The OpenMC geometry may use nested universes and lattices. Symbolic tags are always converted to material IDs; materials.xml is written only for real openmc.Material objects supplied by the caller."
+}

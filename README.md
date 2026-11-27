@@ -217,7 +217,20 @@ The two examples intentionally preserve the same physical arrangement and repres
 ## Analytical primitives
 
 - `Sphere(radius)`
-- `Cylinder(radius, height)` — finite cylinder centred at the local origin, axis along local Z.
+- `Cylinder(outer_radius, height, sections=64, inner_radius=0.0)` — finite solid or annular cylinder centred at the local origin, axis along local Z.
+  - Set `inner_radius` to a positive value to model a hollow cylinder (pipe or cladding wall) directly. `inner_radius=0.0` remains a solid cylinder.
+
+Example annular cylinder:
+
+```python
+tube = scene.define(
+    "tube",
+    Cylinder(outer_radius=2.0, inner_radius=1.5, height=10.0),
+    material="steel",
+)
+```
+
+Run [`examples/hollow_cylinder.py`](examples/hollow_cylinder.py) for a standalone analytical example.
 - `Box(x, y, z)`
 - `Cone(bottom_radius, top_radius, height)`
 - `Ellipsoid((rx, ry, rz))`

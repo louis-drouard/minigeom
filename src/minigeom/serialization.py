@@ -49,7 +49,10 @@ def _primitive_from_data(data):
     if cls is None:
         raise ValueError(f"Unknown or unsupported archived primitive type: {kind!r}")
     values = {k: v for k, v in data.items() if k != "type"}
-    if kind in {"Ellipsoid"}:
+    if kind == "Cylinder" and "outer_radius" not in values and "radius" in values:
+        # Compatibility with archives written by MiniGeom 0.10.0 and earlier.
+        values["outer_radius"] = values.pop("radius")
+    if kind == "Ellipsoid":
         values["radii"] = tuple(values["radii"])
     if kind == "Quadric":
         values["coefficients"] = tuple(values["coefficients"])

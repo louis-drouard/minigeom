@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "scene": "scene",
+  "materials": {
+    "clad": {
+      "id": 1,
+      "source": "external"
+    },
+    "fuel": {
+      "id": 2,
+      "source": "external"
+    },
+    "water": {
+      "id": 3,
+      "source": "external"
+    }
+  }
+}

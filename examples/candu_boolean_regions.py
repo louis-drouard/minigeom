@@ -77,7 +77,7 @@ def _translated_pin_shapes(radius: float, positions):
     leaf. The CSG compiler later transforms the cylinder's side and cap surfaces
     into the assembly coordinate system.
     """
-    local_cylinder = Cylinder(radius, AXIAL_PITCH)
+    local_cylinder = Cylinder(outer_radius=radius, height=AXIAL_PITCH)
     return [local_cylinder.translated((x, y, 0.0)) for x, y in positions]
 
 # Boolean CANDU model
@@ -150,16 +150,16 @@ assembly.add_cell(
 # ensures that the water cannot occupy fuel or cladding locations.
 ring_domains = [
     # Ring 0: central disk, from radius 0 to interface 0.
-    Cylinder(RING_INTERFACES[0], AXIAL_PITCH),
+    Cylinder(outer_radius=RING_INTERFACES[0], height=AXIAL_PITCH),
     # Ring 1: annulus between interfaces 0 and 1.
-    Cylinder(RING_INTERFACES[1], AXIAL_PITCH)
-    - Cylinder(RING_INTERFACES[0], AXIAL_PITCH),
+    Cylinder(outer_radius=RING_INTERFACES[1], height=AXIAL_PITCH)
+    - Cylinder(outer_radius=RING_INTERFACES[0], height=AXIAL_PITCH),
     # Ring 2: annulus between interfaces 1 and 2.
-    Cylinder(RING_INTERFACES[2], AXIAL_PITCH)
-    - Cylinder(RING_INTERFACES[1], AXIAL_PITCH),
+    Cylinder(outer_radius=RING_INTERFACES[2], height=AXIAL_PITCH)
+    - Cylinder(outer_radius=RING_INTERFACES[1], height=AXIAL_PITCH),
     # Ring 3: annulus between interface 2 and the pressure-tube inner wall.
-    Cylinder(PRESSURE_TUBE_INNER, AXIAL_PITCH)
-    - Cylinder(RING_INTERFACES[2], AXIAL_PITCH),
+    Cylinder(outer_radius=PRESSURE_TUBE_INNER, height=AXIAL_PITCH)
+    - Cylinder(outer_radius=RING_INTERFACES[2], height=AXIAL_PITCH),
 ]
 
 for ring_index, ring_domain in enumerate(ring_domains):
@@ -177,10 +177,10 @@ for ring_index, ring_domain in enumerate(ring_domains):
 # 3. Pressure tube, filler and calandria annuli
 # -----------------------------------------------------------------------
 # These are direct differences between concentric finite cylinders.
-pressure_tube_outer = Cylinder(PRESSURE_TUBE_OUTER, AXIAL_PITCH)
-pressure_tube_inner = Cylinder(PRESSURE_TUBE_INNER, AXIAL_PITCH)
-calandria_outer = Cylinder(CALANDRIA_OUTER, AXIAL_PITCH)
-calandria_inner = Cylinder(CALANDRIA_INNER, AXIAL_PITCH)
+pressure_tube_outer = Cylinder(outer_radius=PRESSURE_TUBE_OUTER, height=AXIAL_PITCH)
+pressure_tube_inner = Cylinder(outer_radius=PRESSURE_TUBE_INNER, height=AXIAL_PITCH)
+calandria_outer = Cylinder(outer_radius=CALANDRIA_OUTER, height=AXIAL_PITCH)
+calandria_inner = Cylinder(outer_radius=CALANDRIA_INNER, height=AXIAL_PITCH)
 
 assembly.add_cell(
     name="pressure_tube",

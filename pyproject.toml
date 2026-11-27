@@ -1,6 +1,6 @@
 [project]
 name = "minigeom"
-version = "0.10.0"
+version = "0.10.1"
 description = "Backend-independent analytical CSG geometry builder with modular volume archives and OpenMC/TRIPOLI-5 exporters"
 readme = "README.md"
 authors = [

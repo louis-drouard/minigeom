@@ -417,18 +417,27 @@ class CSGCompiler:
             axis = self._unit(rotation @ np.array([0., 0., 1.]))
             projector = np.eye(3) - np.outer(axis, axis)
             linear = -2.0 * (projector @ translation)
-            constant = float(translation @ projector @ translation - shape.radius**2)
-            coefficients = (projector[0,0], projector[1,1], projector[2,2],
-                            2*projector[0,1], 2*projector[1,2], 2*projector[0,2],
-                            linear[0], linear[1], linear[2], constant)
-            side = self.registry.quadric(coefficients, f"{name}_cylinder_side")
+            def cylinder_quadric(radius, label):
+                constant = float(translation @ projector @ translation - radius**2)
+                coefficients = (projector[0,0], projector[1,1], projector[2,2],
+                              2*projector[0,1], 2*projector[1,2], 2*projector[0,2],
+                              linear[0], linear[1], linear[2], constant)
+                return self.registry.quadric(coefficients, label)
+
+            outer = cylinder_quadric(shape.outer_radius, f"{name}_cylinder_outer")
+            side_terms = [Halfspace(outer, -1)]
+            surfaces.append(outer)
+            if shape.inner_radius > 0.0:
+                inner = cylinder_quadric(shape.inner_radius, f"{name}_cylinder_inner")
+                side_terms.append(Halfspace(inner, 1))
+                surfaces.append(inner)
             upper = self.registry.plane(axis, translation + axis*shape.height/2, f"{name}_cap_plus")
             lower = self.registry.plane(axis, translation - axis*shape.height/2, f"{name}_cap_minus")
-            surfaces.extend((side, upper, lower))
-            # For both cap planes the positive normal points along the cylinder
-            # axis. The inside is consequently the negative side of the upper
-            # plane and the positive side of the lower plane.
-            return Intersection((Halfspace(side, -1), Halfspace(upper, -1), Halfspace(lower, 1))), surfaces
+            surfaces.extend((upper, lower))
+            # Positive normals point along the axis: inside is below the upper
+            # cap and above the lower cap.
+            side_terms.extend((Halfspace(upper, -1), Halfspace(lower, 1)))
+            return Intersection(tuple(side_terms)), surfaces
 
         if isinstance(shape, Box):
             # A box is not exported as a mesh or as a six-face polyhedron

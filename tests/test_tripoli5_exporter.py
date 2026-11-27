@@ -172,7 +172,7 @@ def test_tripoli_hierarchy_preserves_native_rectangular_lattice(monkeypatch, tmp
     scene = Scene("tripoli_lattice")
     world = scene.define("world", Box(20, 20, 10), material="WATER")
     tile = scene.define("tile", Box(2, 2, 2), material="MODERATOR")
-    pin = scene.define("pin", Cylinder(0.5, 2), material="FUEL")
+    pin = scene.define("pin", Cylinder(outer_radius=0.5, height=2), material="FUEL")
     tile.place(pin)
     world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
                         lower_left=(-3, -2, -1), name="pins")
@@ -210,7 +210,7 @@ def test_tripoli_auto_mode_uses_flat_backend_for_explicit_boolean_cells(monkeypa
     patch_tripoli(monkeypatch)
     scene = Scene("tripoli_boolean_cells")
     world = scene.define("world", Box(10, 10, 10), material="water")
-    world.add_cell("shell", Cylinder(3, 8) - Cylinder(1, 8), "steel")
+    world.add_cell("shell", Cylinder(outer_radius=3, height=8) - Cylinder(outer_radius=1, height=8), "steel")
     world.add_cell("core", Sphere(1), "fuel")
 
     exporter = Tripoli5Exporter(scene, mode="auto")
@@ -227,10 +227,10 @@ def test_tripoli_lattice_replacements_use_native_index_assignment(monkeypatch):
     scene = Scene("tripoli_lattice_replacements")
     world = scene.define("world", Box(20, 20, 10), material="WATER")
     tile = scene.define("tile", Box(2, 2, 2), material="MODERATOR")
-    pin = scene.define("pin", Cylinder(0.5, 2), material="FUEL")
+    pin = scene.define("pin", Cylinder(outer_radius=0.5, height=2), material="FUEL")
     tile.place(pin)
     guide_tile = scene.define("guide_tile", Box(2, 2, 2), material="MODERATOR")
-    guide = scene.define("guide", Cylinder(0.7, 2), material="GUIDE")
+    guide = scene.define("guide", Cylinder(outer_radius=0.7, height=2), material="GUIDE")
     guide_tile.place(guide)
     lattice_spec = world.place_lattice(tile, shape=(3, 2, 1), pitch=(2, 2, 2),
         lower_left=(-3, -2, -1), name="assembly")
@@ -242,3 +242,15 @@ def test_tripoli_lattice_replacements_use_native_index_assignment(monkeypatch):
     assert lattice.elements[(1, 0, 0)].label == "u_guide_tile"
     assert lattice.elements[(2, 1, 0)].label == "u_guide_tile"
     assert lattice[(0, 0, 0)].label == "u_tile"
+
+
+def test_tripoli_annular_cylinder_exports_outer_and_inner_quadrics(monkeypatch):
+    patch_tripoli(monkeypatch)
+    scene = Scene("annular_tripoli")
+    world = scene.define("world", Box(10, 10, 10), material="WATER")
+    tube = scene.define("tube", Cylinder(outer_radius=2.0, inner_radius=1.0, height=6.0), material="STEEL")
+    world.place(tube)
+    exporter = Tripoli5Exporter(scene, mode="flat")
+    exporter.build()
+    quadric_specs = [spec for spec in exporter.compiler.registry.surfaces if spec.kind == "quadric"]
+    assert len(quadric_specs) == 2

@@ -71,10 +71,10 @@ assembly = scene.define(
 
 # Nested radial shells. Each child occupies the inner part of its parent;
 # the parent's residual region is therefore the corresponding annulus.
-calandria = scene.define("calandria", Cylinder(CALANDRIA_OUTER, AXIAL_PITCH), material="zircaloy c")
-filler = scene.define("filler", Cylinder(CALANDRIA_INNER, AXIAL_PITCH), material="filler")
-pressure_tube = scene.define("pressure_tube", Cylinder(PRESSURE_TUBE_OUTER, AXIAL_PITCH), material="zircaloy pt")
-bundle = scene.define("bundle", Cylinder(PRESSURE_TUBE_INNER, AXIAL_PITCH), material="heavy water")
+calandria = scene.define("calandria", Cylinder(outer_radius=CALANDRIA_OUTER, height=AXIAL_PITCH), material="zircaloy c")
+filler = scene.define("filler", Cylinder(outer_radius=CALANDRIA_INNER, height=AXIAL_PITCH), material="filler")
+pressure_tube = scene.define("pressure_tube", Cylinder(outer_radius=PRESSURE_TUBE_OUTER, height=AXIAL_PITCH), material="zircaloy pt")
+bundle = scene.define("bundle", Cylinder(outer_radius=PRESSURE_TUBE_INNER, height=AXIAL_PITCH), material="heavy water")
 
 assembly.place(calandria, priority=100, name="calandria_shell_domain")
 calandria.place(filler, priority=100, name="filler_domain")
@@ -83,15 +83,15 @@ pressure_tube.place(bundle, priority=100, name="bundle_domain")
 
 # Fuel pin universe: fuel occupies the inner cylinder; the residual inside
 # the outer cladding cylinder is the zircaloy cladding.
-pin = scene.define("fuel_pin", Cylinder(R_CLAD, AXIAL_PITCH), material="zircaloy")
-fuel = scene.define("fuel", Cylinder(R_FUEL, AXIAL_PITCH), material="fuel")
+pin = scene.define("fuel_pin", Cylinder(outer_radius=R_CLAD, height=AXIAL_PITCH), material="zircaloy")
+fuel = scene.define("fuel", Cylinder(outer_radius=R_FUEL, height=AXIAL_PITCH), material="fuel")
 pin.place(fuel, priority=100, name="fuel_region")
 
 # The water rings are nested cylinders. Their residual volumes are the
 # successive annuli; pin placements are siblings in the corresponding ring.
-water_ring_0 = scene.define("water_ring_0", Cylinder(RING_INTERFACES[0], AXIAL_PITCH), material="heavy water")
-water_ring_1 = scene.define("water_ring_1", Cylinder(RING_INTERFACES[1], AXIAL_PITCH), material="heavy water")
-water_ring_2 = scene.define("water_ring_2", Cylinder(RING_INTERFACES[2], AXIAL_PITCH), material="heavy water")
+water_ring_0 = scene.define("water_ring_0", Cylinder(outer_radius=RING_INTERFACES[0], height=AXIAL_PITCH), material="heavy water")
+water_ring_1 = scene.define("water_ring_1", Cylinder(outer_radius=RING_INTERFACES[1], height=AXIAL_PITCH), material="heavy water")
+water_ring_2 = scene.define("water_ring_2", Cylinder(outer_radius=RING_INTERFACES[2], height=AXIAL_PITCH), material="heavy water")
 
 bundle.place(water_ring_2, priority=100, name="inner_water_regions")
 water_ring_2.place(water_ring_1, priority=100, name="water_ring_1_domain")

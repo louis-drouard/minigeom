@@ -8,7 +8,7 @@ world = scene.define("world", Box(24, 24, 12), material="moderator")
 # The tile root Box fills one lattice pitch completely. The moderator fills
 # the tile outside its fuel rod.
 pin = scene.define("pin", Box(2, 2, 10), material="moderator")
-fuel = scene.define("fuel", Cylinder(radius=0.55, height=9.8), material="fuel")
+fuel = scene.define("fuel", Cylinder(outer_radius=0.55, height=9.8), material="fuel")
 pin.place(fuel)
 
 world.place_lattice(

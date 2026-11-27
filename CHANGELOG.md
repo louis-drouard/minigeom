@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.1
+
+- Cylinder now uses the required `outer_radius` argument and supports annular regions via `inner_radius`.
+- CSG compilation of hollow cylinders includes an outer quadric and an oppositely oriented inner quadric.
+- Annular cylinder mesh generation added for optional preview/export mesh workflows.
+- Legacy 0.10.0 cylinder archives using the `radius` field remain loadable.
+- Examples and tests updated to use the new outer-radius terminology.
+
+
+
 ## 0.10.0
 
 - Added safe, versioned `.mgz` volume archives with JSON data stored in ZIP containers.

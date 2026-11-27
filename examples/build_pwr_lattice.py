@@ -18,19 +18,19 @@ scene = Scene("PWR_core")
 
 fuel = scene.define(
     "fuel",
-    Cylinder(0.4095, H),
+    Cylinder(outer_radius=0.4095, height=H),
     material="uo2"
 )
 
 gap = scene.define(
     "gap",
-    Cylinder(0.418, H),
+    Cylinder(outer_radius=0.418, height=H),
     material="helium"
 )
 
 clad = scene.define(
     "cladding",
-    Cylinder(0.475, H),
+    Cylinder(outer_radius=0.475, height=H),
     material="zircaloy"
 )
 

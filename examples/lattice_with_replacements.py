@@ -20,8 +20,8 @@ assembly = scene.define("assembly", Box(NX * PITCH, NY * PITCH, HEIGHT), materia
 # Standard fuel tile: moderator occupies the tile except where the cladding and
 # fuel are placed. This universe will be repeated in the majority of lattice sites.
 fuel_tile = scene.define("fuel_tile", Box(PITCH, PITCH, HEIGHT), material="water")
-clad = scene.define("cladding", Cylinder(0.46, HEIGHT), material="zircaloy")
-fuel = scene.define("fuel", Cylinder(0.40, HEIGHT), material="fuel")
+clad = scene.define("cladding", Cylinder(outer_radius=0.46, height=HEIGHT), material="zircaloy")
+fuel = scene.define("fuel", Cylinder(outer_radius=0.40, height=HEIGHT), material="fuel")
 clad.place(fuel, priority=100)
 fuel_tile.place(clad, priority=10)
 
@@ -29,8 +29,8 @@ fuel_tile.place(clad, priority=10)
 # structural tube and a coolant interior. This universe is used only at selected
 # lattice coordinates.
 guide_tile = scene.define("guide_tile", Box(PITCH, PITCH, HEIGHT), material="water")
-guide_wall = scene.define("guide_wall", Cylinder(0.58, HEIGHT), material="zircaloy")
-guide_inner = scene.define("guide_coolant", Cylinder(0.50, HEIGHT), material="water")
+guide_wall = scene.define("guide_wall", Cylinder(outer_radius=0.58, height=HEIGHT), material="zircaloy")
+guide_inner = scene.define("guide_coolant", Cylinder(outer_radius=0.50, height=HEIGHT), material="water")
 guide_wall.place(guide_inner, priority=100)
 guide_tile.place(guide_wall, priority=10)
 

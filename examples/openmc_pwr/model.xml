@@ -101,21 +101,4 @@
       </space>
     </source>
   </settings>
-  <tallies>
-    <filter id="1" type="material">
-      <bins>1</bins>
-    </filter>
-    <tally id="1" name="fuel Tally">
-      <filters>1</filters>
-      <scores>flux</scores>
-      <estimator>tracklength</estimator>
-    </tally>
-  </tallies>
-  <plots>
-    <plot basis="xy" color_by="material" id="1" type="slice">
-      <pixels>3000 3000</pixels>
-      <origin>0 0 0</origin>
-      <width>20 20</width>
-    </plot>
-  </plots>
 </model>

@@ -12,8 +12,8 @@ def build_archiveable_graph():
     root = scene.define("assembly", Box(10, 10, 20), material="water")
     tile = scene.define("tile", Box(2, 2, 20), material="water")
     pin_tile = scene.define("pin_tile", Box(2, 2, 20), material="water")
-    pin = scene.define("pin", Cylinder(0.6, 20), material="steel")
-    fuel = scene.define("fuel", Cylinder(0.4, 20), material="fuel")
+    pin = scene.define("pin", Cylinder(outer_radius=0.6, height=20), material="steel")
+    fuel = scene.define("fuel", Cylinder(outer_radius=0.4, height=20), material="fuel")
     pin.place(fuel, priority=10, name="fuel_region")
     pin_tile.place(pin, at=(0, 0, 0), priority=20, name="pin_center")
     root.place(pin_tile, at=(0, 0, 0), name="reused_pin_tile")
@@ -50,7 +50,7 @@ def test_archive_roundtrip_preserves_shared_refs_and_sparse_lattice(tmp_path):
 def test_archive_roundtrip_explicit_boolean_regions(tmp_path):
     scene = Scene("regions")
     volume = scene.define("cell", Box(10, 10, 10), material="water")
-    volume.add_cell("annulus", Cylinder(3, 10) - Cylinder(1, 10), material="steel", priority=3)
+    volume.add_cell("annulus", Cylinder(outer_radius=3, height=10) - Cylinder(outer_radius=1, height=10), material="steel", priority=3)
     path = save_volume(volume, tmp_path / "region.mgz")
     loaded = load_volume(path)
     assert loaded.region_cells[0].name == "annulus"
@@ -112,13 +112,13 @@ def test_scene_stl_export_remains_available_for_full_scene(tmp_path):
 def test_scene_load_volume_namespaces_internal_definitions_to_allow_modular_imports(tmp_path):
     first_scene = Scene("component_a")
     first_root = first_scene.define("component_a", Box(10, 10, 10), material="water")
-    first_child = first_scene.define("fuel", Cylinder(1, 10), material="fuel")
+    first_child = first_scene.define("fuel", Cylinder(outer_radius=1, height=10), material="fuel")
     first_root.place(first_child, name="fuel_placement")
     path_a = first_scene.save_volume(first_root, tmp_path / "a.mgz")
 
     second_scene = Scene("component_b")
     second_root = second_scene.define("component_b", Box(10, 10, 10), material="water")
-    second_child = second_scene.define("fuel", Cylinder(1, 10), material="fuel")
+    second_child = second_scene.define("fuel", Cylinder(outer_radius=1, height=10), material="fuel")
     second_root.place(second_child, name="fuel_placement")
     path_b = second_scene.save_volume(second_root, tmp_path / "b.mgz")
 
@@ -131,3 +131,21 @@ def test_scene_load_volume_namespaces_internal_definitions_to_allow_modular_impo
     assert "component_b__fuel" in final_scene.defs
     assert loaded_a.children[0].child.name == "component_a__fuel"
     assert loaded_b.children[0].child.name == "component_b__fuel"
+
+
+def test_annular_cylinder_archive_roundtrip(tmp_path):
+    scene = Scene("annular_archive")
+    root = scene.define("world", Box(10, 10, 20), material="water")
+    annulus = scene.define("tube", Cylinder(outer_radius=2.0, inner_radius=1.25, height=10.0), material="steel")
+    root.place(annulus)
+    path = save_volume(root, tmp_path / "tube.mgz")
+    loaded = load_volume(path)
+    assert loaded.children[0].child.shape.outer_radius == 2.0
+    assert loaded.children[0].child.shape.inner_radius == 1.25
+
+
+def test_legacy_cylinder_archive_radius_field_loads_as_outer_radius():
+    from minigeom.serialization import _primitive_from_data
+    shape = _primitive_from_data({"type": "Cylinder", "radius": 2.0, "height": 5.0, "sections": 12})
+    assert shape.outer_radius == 2.0
+    assert shape.inner_radius == 0.0

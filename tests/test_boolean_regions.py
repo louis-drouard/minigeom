@@ -21,8 +21,8 @@ def single_material(model, point):
 
 
 def test_primitive_operators_create_lazy_boolean_expression():
-    outer = Cylinder(5.0, 10.0)
-    inner = Cylinder(3.0, 10.0)
+    outer = Cylinder(outer_radius=5.0, height=10.0)
+    inner = Cylinder(outer_radius=3.0, height=10.0)
     shell = outer - inner
 
     assert isinstance(shell, RegionExpression)
@@ -33,7 +33,7 @@ def test_boolean_operators_compile_to_analytical_regions():
     scene = Scene("boolean_operators")
     world = scene.define("world", Box(20, 20, 20))
 
-    world.add_cell("shell", Cylinder(5, 10) - Cylinder(3, 10), "steel")
+    world.add_cell("shell", Cylinder(outer_radius=5, height=10) - Cylinder(outer_radius=3, height=10), "steel")
     world.add_cell("core", Sphere(2), "fuel", priority=10)
 
     model = CSGCompiler().compile(scene)
@@ -110,9 +110,9 @@ def test_explicit_region_cell_priority_higher_wins_and_last_wins_ties():
 def test_explicit_region_cells_can_be_attached_to_a_placed_volume():
     scene = Scene("placed_region_cells")
     world = scene.define("world", Box(30, 30, 30), "air")
-    insert = scene.define("insert", Cylinder(5, 10), material=None)
-    insert.add_cell("core", Cylinder(2, 10), "fuel")
-    insert.add_cell("annulus", Cylinder(5, 10) - Cylinder(2, 10), "steel")
+    insert = scene.define("insert", Cylinder(outer_radius=5, height=10), material=None)
+    insert.add_cell("core", Cylinder(outer_radius=2, height=10), "fuel")
+    insert.add_cell("annulus", Cylinder(outer_radius=5, height=10) - Cylinder(outer_radius=2, height=10), "steel")
     world.place(insert, at=(5, 0, 0))
 
     model = CSGCompiler().compile(scene)

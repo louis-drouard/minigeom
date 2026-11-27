@@ -137,7 +137,7 @@ def test_repeated_volume_def_reuses_one_openmc_universe(monkeypatch):
     scene = Scene("repeated_pins")
     world = scene.define("world", Box(20,20,20), "air")
     pin = scene.define("pin", Box(2,2,2), "moderator")
-    fuel = scene.define("fuel", Cylinder(0.5,2), "fuel")
+    fuel = scene.define("fuel", Cylinder(outer_radius=0.5,height=2), "fuel")
     pin.place(fuel)
     world.place(pin, at=(-3,0,0), name="left")
     world.place(pin, at=(3,0,0), name="right")
@@ -158,7 +158,7 @@ def test_rectangular_lattice_exports_one_lattice_and_reuses_tile_universe(monkey
     scene = Scene("pin_lattice")
     world = scene.define("world", Box(20,20,10), "air")
     tile = scene.define("tile", Box(2,2,2), "moderator")
-    fuel = scene.define("fuel", Cylinder(0.5,2), "fuel")
+    fuel = scene.define("fuel", Cylinder(outer_radius=0.5,height=2), "fuel")
     tile.place(fuel)
     world.place_lattice(tile, shape=(3,2,1), pitch=(2,2,2),
                         lower_left=(-3,-2,-1), name="assembly")
@@ -326,7 +326,7 @@ def test_hierarchical_export_patches_symbolic_material_ids_in_nested_cells(monke
     scene = Scene("nested_symbolic_ids")
     world = scene.define("world", Box(20, 20, 20), material="water")
     pin = scene.define("pin", Box(4, 4, 4), material="moderator")
-    fuel = scene.define("fuel", Cylinder(0.8, 4), material="uo2")
+    fuel = scene.define("fuel", Cylinder(outer_radius=0.8, height=4), material="uo2")
     pin.place(fuel)
     world.place(pin)
 
@@ -348,7 +348,7 @@ def test_hierarchical_lattice_export_patches_symbolic_material_ids(monkeypatch, 
     scene = Scene("nested_lattice_symbolic_ids")
     world = scene.define("world", Box(12, 12, 6), material="water")
     tile = scene.define("tile", Box(2, 2, 2), material="moderator")
-    fuel = scene.define("fuel", Cylinder(0.5, 2), material="uo2")
+    fuel = scene.define("fuel", Cylinder(outer_radius=0.5, height=2), material="uo2")
     tile.place(fuel)
     world.place_lattice(tile, shape=(3, 3, 1), pitch=(2, 2, 2),
                         lower_left=(-3, -3, -1), name="pins")
@@ -369,7 +369,7 @@ def test_openmc_auto_mode_uses_flat_backend_for_explicit_boolean_cells(monkeypat
     monkeypatch.setattr(exporter_module, "openmc", make_fake_openmc())
     scene = Scene("openmc_boolean_cells")
     world = scene.define("world", Box(10, 10, 10))
-    world.add_cell("shell", Cylinder(3, 8) - Cylinder(1, 8), "steel")
+    world.add_cell("shell", Cylinder(outer_radius=3, height=8) - Cylinder(outer_radius=1, height=8), "steel")
     world.add_cell("core", Sphere(1), "fuel")
 
     exporter = OpenMCExporter(scene, mode="auto")
@@ -388,10 +388,10 @@ def test_rectangular_lattice_replacements_export_as_native_openmc_universes(monk
     scene = Scene("lattice_replacements")
     world = scene.define("world", Box(20, 20, 10), "air")
     default_tile = scene.define("fuel_tile", Box(2, 2, 2), "moderator")
-    default_pin = scene.define("fuel", Cylinder(0.5, 2), "fuel")
+    default_pin = scene.define("fuel", Cylinder(outer_radius=0.5, height=2), "fuel")
     default_tile.place(default_pin)
     guide_tile = scene.define("guide_tile", Box(2, 2, 2), "moderator")
-    guide = scene.define("guide", Cylinder(0.7, 2), "guide_material")
+    guide = scene.define("guide", Cylinder(outer_radius=0.7, height=2), "guide_material")
     guide_tile.place(guide)
     lattice_spec = world.place_lattice(
         default_tile, shape=(3, 2, 1), pitch=(2, 2, 2),
@@ -409,3 +409,20 @@ def test_rectangular_lattice_replacements_export_as_native_openmc_universes(monk
     assert lattice.universes[0, 0, 2].name == "u_guide_tile"
     assert lattice.universes[0, 1, 0].name == "u_fuel_tile"
     assert lattice.universes[0, 0, 0].name == "u_fuel_tile"
+
+
+def test_annular_cylinder_exports_both_quadrics_to_openmc(monkeypatch):
+    reset_fake_ids()
+    monkeypatch.setattr(exporter_module, "openmc", make_fake_openmc())
+    scene = Scene("annular_openmc")
+    world = scene.define("world", Box(10, 10, 10), "water")
+    tube = scene.define("tube", Cylinder(outer_radius=2.0, inner_radius=1.0, height=6.0), "steel")
+    world.place(tube)
+    mats = {name: FakeMaterial(name) for name in ("water", "steel")}
+    exporter = OpenMCExporter(scene, mats, mode="flat")
+    exporter.build()
+    quadric_specs = [spec for spec in exporter.model.surfaces if spec.kind == "quadric"]
+    assert len(quadric_specs) == 2
+    quadric_objects = [surface for surface in exporter.surfaces if isinstance(surface, FakeSurface)
+                       and len(surface.args) == 10]
+    assert len(quadric_objects) == 2

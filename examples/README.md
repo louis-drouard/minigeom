@@ -1,3 +1,11 @@
+## `hollow_cylinder.py` — annular primitive
+
+A standalone example of the new `Cylinder(outer_radius=..., inner_radius=..., height=...)` API. The material occupies only the annular wall; the bore remains the parent material.
+
+```bash
+python examples/hollow_cylinder.py
+```
+
 # MiniGeom examples
 
 All dimensions in the CANDU scripts are in centimetres. Both scripts describe

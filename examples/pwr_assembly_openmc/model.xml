@@ -1,0 +1,88 @@
+<?xml version='1.0' encoding='utf-8'?>
+<model>
+<materials>
+  <material id="3" name="water">
+    <density units="g/cm3" value="1.0"/>
+    <nuclide ao="2.0" name="H1"/>
+    <nuclide ao="16.0" name="O16"/>
+  </material>
+  <material depletable="true" id="2" name="fuel">
+    <density units="g/cm3" value="10.0"/>
+    <nuclide ao="0.04" name="U235"/>
+    <nuclide ao="0.96" name="U238"/>
+  </material>
+  <material id="1" name="zircaloy">
+    <density units="g/cm3" value="6.35"/>
+    <nuclide ao="1.0" name="Zr95"/>
+  </material>
+</materials>
+<geometry>
+  <cell id="1" name="fuel__body" material="2" region="-1 -2 3" universe="5" />
+  <cell id="2" name="clad_ir__fuel_1" fill="5" region="-4 -2 3 -1 -2 3" translation="0.0 0.0 0.0" universe="4" />
+  <cell id="3" name="clad_ir__body" material="void" region="-4 -2 3 (4 | 2 | -3 | 1 | 2 | -3)" universe="4" />
+  <cell id="4" name="clad_or__clad_ir_1" fill="4" region="-5 -2 3 -4 -2 3" translation="0.0 0.0 0.0" universe="3" />
+  <cell id="5" name="clad_or__body" material="1" region="-5 -2 3 (5 | 2 | -3 | 4 | 2 | -3)" universe="3" />
+  <cell id="6" name="fuel_pincell__clad_or_1" fill="3" region="-6 7 -8 9 -2 3 -5 -2 3" translation="0.0 0.0 0.0" universe="2" />
+  <cell id="7" name="fuel_pincell__body" material="3" region="-6 7 -8 9 -2 3 (6 | -7 | 8 | -9 | 2 | -3 | 5 | 2 | -3)" universe="2" />
+  <cell id="8" name="gtclad_or__body" material="1" region="-10 11 -2 3" universe="8" />
+  <cell id="9" name="gt_pincell__gtclad_or_1" fill="8" region="-6 7 -8 9 -2 3 -10 11 -2 3" translation="0.0 0.0 0.0" universe="7" />
+  <cell id="10" name="gt_pincell__body" material="3" region="-6 7 -8 9 -2 3 (6 | -7 | 8 | -9 | 2 | -3 | 10 | -11 | 2 | -3)" universe="7" />
+  <cell id="11" name="fuel_pincell_lattice_0_outer_void" material="void" universe="9" />
+  <cell id="12" name="assembly__fuel_pincell_lattice_0" fill="6" region="-12 13 -14 15 -2 3 -16 17 -18 19 -2 3" universe="1" />
+  <cell id="13" name="assembly__body" material="3" region="-12 13 -14 15 -2 3 (12 | -13 | 14 | -15 | 2 | -3 | 16 | -17 | 18 | -19 | 2 | -3)" universe="1" />
+  <lattice id="6" name="fuel_pincell_lattice_0">
+    <pitch>1.262082 1.262082 427.0</pitch>
+    <outer>9</outer>
+    <dimension>17 17 1</dimension>
+    <lower_left>-10.727697 -10.727697 -213.5</lower_left>
+    <universes>
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 2 2 7 2 2 7 2 2 7 2 2 2 2 2 
+2 2 2 7 2 2 2 2 2 2 2 2 2 7 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 7 2 2 7 2 2 7 2 2 7 2 2 7 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 7 2 2 7 2 2 7 2 2 7 2 2 7 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 7 2 2 7 2 2 7 2 2 7 2 2 7 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 7 2 2 2 2 2 2 2 2 2 7 2 2 2 
+2 2 2 2 2 7 2 2 7 2 2 7 2 2 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 
+2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 </universes>
+  </lattice>
+  <surface id="1" name="clad_ir_fuel#1_footprint_cylinder_outer" type="quadric" coeffs="1.0 1.0 0.0 0.0 0.0 0.0 -0.0 -0.0 -0.0 -0.1702882756" />
+  <surface id="2" name="assembly_local_axis2_plus" type="plane" boundary="reflective" coeffs="0.0 0.0 1.0 213.5" />
+  <surface id="3" name="assembly_local_axis2_minus" type="plane" boundary="reflective" coeffs="0.0 0.0 1.0 -213.5" />
+  <surface id="4" name="clad_or_clad_ir#1_footprint_cylinder_outer" type="quadric" coeffs="1.0 1.0 0.0 0.0 0.0 0.0 -0.0 -0.0 -0.0 -0.17380561" />
+  <surface id="5" name="fuel_pincell_clad_or#1_footprint_cylinder_outer" type="quadric" coeffs="1.0 1.0 0.0 0.0 0.0 0.0 -0.0 -0.0 -0.0 -0.2250174096" />
+  <surface id="6" name="fuel_pincell_local_axis0_plus" type="plane" coeffs="1.0 0.0 0.0 0.631041" />
+  <surface id="7" name="fuel_pincell_local_axis0_minus" type="plane" coeffs="1.0 0.0 0.0 -0.631041" />
+  <surface id="8" name="fuel_pincell_local_axis1_plus" type="plane" coeffs="0.0 1.0 0.0 0.631041" />
+  <surface id="9" name="fuel_pincell_local_axis1_minus" type="plane" coeffs="0.0 1.0 0.0 -0.631041" />
+  <surface id="10" name="gt_pincell_gtclad_or#1_footprint_cylinder_outer" type="quadric" coeffs="1.0 1.0 0.0 0.0 0.0 0.0 -0.0 -0.0 -0.0 -0.36421225000000007" />
+  <surface id="11" name="gt_pincell_gtclad_or#1_footprint_cylinder_inner" type="quadric" coeffs="1.0 1.0 0.0 0.0 0.0 0.0 -0.0 -0.0 -0.0 -0.3174533649" />
+  <surface id="12" name="assembly_local_axis0_plus" type="plane" boundary="reflective" coeffs="1.0 0.0 0.0 10.80562294" />
+  <surface id="13" name="assembly_local_axis0_minus" type="plane" boundary="reflective" coeffs="1.0 0.0 0.0 -10.80562294" />
+  <surface id="14" name="assembly_local_axis1_plus" type="plane" boundary="reflective" coeffs="0.0 1.0 0.0 10.80562294" />
+  <surface id="15" name="assembly_local_axis1_minus" type="plane" boundary="reflective" coeffs="0.0 1.0 0.0 -10.80562294" />
+  <surface id="16" name="assembly_fuel_pincell_lattice_0_envelope_max_0" type="plane" coeffs="1.0 0.0 0.0 10.727697" />
+  <surface id="17" name="assembly_fuel_pincell_lattice_0_envelope_min_0" type="plane" coeffs="1.0 0.0 0.0 -10.727697" />
+  <surface id="18" name="assembly_fuel_pincell_lattice_0_envelope_max_1" type="plane" coeffs="0.0 1.0 0.0 10.727697" />
+  <surface id="19" name="assembly_fuel_pincell_lattice_0_envelope_min_1" type="plane" coeffs="0.0 1.0 0.0 -10.727697" />
+</geometry>
+  <settings>
+    <run_mode>eigenvalue</run_mode>
+    <particles>10000</particles>
+    <batches>200</batches>
+    <inactive>10</inactive>
+    <source particle="neutron" strength="1.0" type="independent">
+      <space type="box">
+        <parameters>-10 -10 -10 10 10 10</parameters>
+      </space>
+    </source>
+  </settings>
+</model>

@@ -9,9 +9,9 @@ from minigeom import Box, Cylinder, Scene, Sphere, OpenMCExporter
 
 scene = Scene("detector")
 world = scene.define("world", Box(200.0, 200.0, 200.0), material="air")
-shield = scene.define("shield", Cylinder(radius=45.0, height=120.0), material="lead")
+shield = scene.define("shield", Cylinder(outer_radius=45.0, height=120.0), material="lead")
 target = scene.define("target", Sphere(radius=12.0), material="tungsten")
-pipe = scene.define("pipe", Cylinder(radius=4.0, height=80.0), material="steel")
+pipe = scene.define("pipe", Cylinder(outer_radius=4.0, height=80.0), material="steel")
 
 world.place(shield, at=(0.0, 0.0, 0.0), priority=10)
 world.place(target, at=(0.0, 0.0, 0.0), priority=20)
